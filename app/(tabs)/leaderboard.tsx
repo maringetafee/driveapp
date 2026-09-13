@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import Avatar from '../../src/components/ui/Avatar';
+import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 
 const MEDAL_COLOR: Record<number, string> = { 1: colors.gold, 2: colors.silver, 3: colors.bronze };
 import type { LeaderboardMetric, LeaderboardPeriod, LeaderboardScope } from '../../src/types/database';
@@ -118,26 +119,28 @@ export default function LeaderboardScreen() {
           data={rows.slice(0, 30)}
           keyExtractor={(item) => item.user_id}
           ListEmptyComponent={<Text style={styles.empty}>Sin datos todavía para este filtro.</Text>}
-          renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [
-                styles.row,
-                item.user_id === session?.user.id && styles.rowMe,
-                pressed && styles.rowPressed,
-              ]}
-              onPress={() => router.push(`/u/${item.username}`)}
-            >
-              {MEDAL_COLOR[item.rank] ? (
-                <View style={[styles.medal, { borderColor: MEDAL_COLOR[item.rank] }]}>
-                  <Text style={[styles.medalText, { color: MEDAL_COLOR[item.rank] }]}>{item.rank}</Text>
-                </View>
-              ) : (
-                <Text style={styles.rank}>#{item.rank}</Text>
-              )}
-              <Avatar username={item.username} size={32} />
-              <Text style={styles.username}>@{item.username}</Text>
-              <Text style={styles.value}>{formatValue(item)}</Text>
-            </Pressable>
+          renderItem={({ item, index }) => (
+            <FadeSlideIn index={index}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.row,
+                  item.user_id === session?.user.id && styles.rowMe,
+                  pressed && styles.rowPressed,
+                ]}
+                onPress={() => router.push(`/u/${item.username}`)}
+              >
+                {MEDAL_COLOR[item.rank] ? (
+                  <View style={[styles.medal, { borderColor: MEDAL_COLOR[item.rank] }]}>
+                    <Text style={[styles.medalText, { color: MEDAL_COLOR[item.rank] }]}>{item.rank}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.rank}>#{item.rank}</Text>
+                )}
+                <Avatar username={item.username} size={32} />
+                <Text style={styles.username}>@{item.username}</Text>
+                <Text style={styles.value}>{formatValue(item)}</Text>
+              </Pressable>
+            </FadeSlideIn>
           )}
           ListFooterComponent={
             myRankIndex >= 30 ? (

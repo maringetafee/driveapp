@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration } from '../../src/utils/geo';
 import type { Trip } from '../../src/types/database';
+import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 
 function scoreTone(score: number | null) {
   if (score == null) return colors.textMuted;
@@ -41,34 +42,36 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={<Text style={styles.header}>Historial</Text>}
         ListEmptyComponent={<Text style={styles.empty}>Aún no has registrado trayectos.</Text>}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            onPress={() => router.push(`/trip/${item.id}`)}
-          >
-            <View style={styles.cardTop}>
-              <Text style={styles.date}>
-                {new Date(item.started_at).toLocaleDateString('es-ES', {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-              {item.driving_score != null && (
-                <View style={[styles.scorePill, { borderColor: scoreTone(item.driving_score) }]}>
-                  <Text style={[styles.scoreText, { color: scoreTone(item.driving_score) }]}>
-                    {item.driving_score}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.metric}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
-              <View style={styles.dot} />
-              <Text style={styles.metric}>{formatDuration(item.duration_seconds ?? 0)}</Text>
-            </View>
-          </Pressable>
+        renderItem={({ item, index }) => (
+          <FadeSlideIn index={index}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(`/trip/${item.id}`)}
+            >
+              <View style={styles.cardTop}>
+                <Text style={styles.date}>
+                  {new Date(item.started_at).toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+                {item.driving_score != null && (
+                  <View style={[styles.scorePill, { borderColor: scoreTone(item.driving_score) }]}>
+                    <Text style={[styles.scoreText, { color: scoreTone(item.driving_score) }]}>
+                      {item.driving_score}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.metric}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
+                <View style={styles.dot} />
+                <Text style={styles.metric}>{formatDuration(item.duration_seconds ?? 0)}</Text>
+              </View>
+            </Pressable>
+          </FadeSlideIn>
         )}
       />
     </SafeAreaView>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,8 +17,24 @@ export default function DriveScreen() {
   const session = useAuthStore((s) => s.session);
   const [saving, setSaving] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
 
   const isTracking = status === 'tracking';
+
+  useEffect(() => {
+    if (!isTracking) {
+      pulse.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isTracking, pulse]);
 
   const onToggle = async () => {
     if (isTracking) {
@@ -90,7 +106,7 @@ export default function DriveScreen() {
           <Text style={styles.speed}>{formatSpeed(currentSpeedKmh, units)}</Text>
           {isTracking && (
             <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
+              <Animated.View style={[styles.liveDot, { opacity: pulse }]} />
               <Text style={styles.liveText}>EN TRAYECTO</Text>
             </View>
           )}

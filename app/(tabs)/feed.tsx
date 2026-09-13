@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
 import Avatar from '../../src/components/ui/Avatar';
+import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 
 function scoreTone(score: number | null) {
   if (score == null) return colors.textMuted;
@@ -121,11 +122,11 @@ export default function FeedScreen() {
             </Text>
           ) : null
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const liked = likedIds.has(item.id);
           const username = item.profiles?.username ?? '—';
           return (
-            <View style={styles.card}>
+            <FadeSlideIn index={index} style={styles.card}>
               <Pressable style={styles.authorRow} onPress={() => router.push(`/u/${username}`)}>
                 <Avatar username={username} size={36} />
                 <View style={{ flex: 1 }}>
@@ -160,7 +161,7 @@ export default function FeedScreen() {
                   <Text style={styles.actionCount}>{item.trip_comments?.[0]?.count ?? 0}</Text>
                 </Pressable>
               </View>
-            </View>
+            </FadeSlideIn>
           );
         }}
       />
