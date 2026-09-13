@@ -1,6 +1,6 @@
-# DriveRank
+# Roadly
 
-Red social de conductores (estilo TripRank): tracking de trayectos, driving score, feed social y leaderboards. Nombre provisional — cámbialo en `app.config.ts` (`name`, `slug`, `scheme`, `ios.bundleIdentifier`, `android.package`) cuando decidas el definitivo.
+Red social de conductores (estilo TripRank): tracking de trayectos, driving score, feed social y leaderboards.
 
 Las 4 fases del roadmap original están implementadas en código. Lo que no puede hacerse sin intervención tuya (cuentas externas, claves, compilación nativa, tienda de apps) está listado al final en **"Qué te toca hacer a ti"**.
 
@@ -62,10 +62,9 @@ Nada de esto lo puedo hacer yo desde aquí — son cuentas externas, claves secr
    npx eas build --profile development --platform android
    ```
    (o `--platform ios`, necesitas cuenta de Apple Developer para dispositivo físico).
-5. **Decidir el nombre definitivo** de la app y actualizar `app.config.ts` (`name`, `slug`, `scheme`, bundle id / package) — ahora mismo todo usa "DriveRank" / `es.makemyweb.driverank` como placeholder.
-6. **Iconos y splash screen reales** — `assets/icon.png`, `assets/android-icon-*.png`, `assets/favicon.png` sí existen (los generó el template de Expo) pero son los genéricos, no un logo de la app.
-7. **Probar en tu móvil** el flujo completo: registro, permisos de ubicación "Siempre" (hay que aceptarlo desde Ajustes en iOS, no solo en el diálogo), detección automática, generar y compartir una tarjeta, seguir a otro usuario de prueba, etc. Yo he verificado que compila (`tsc --noEmit` limpio) y que la navegación no rompe en web, pero no puedo ejercitar GPS/acelerómetro/cámara reales desde aquí.
-8. **Cuando quieras publicar en las tiendas**: cuentas de Apple Developer (99$/año) y Google Play Console (25$ una vez), `eas submit`, capturas de pantalla, política de privacidad (obligatoria por el uso de ubicación en segundo plano).
+5. **Iconos y splash screen reales** — `assets/icon.png`, `assets/android-icon-*.png`, `assets/favicon.png` sí existen (los generó el template de Expo) pero son los genéricos, no un logo de la app. El bundle id/package ya está actualizado a `es.makemyweb.roadly`, pero como cambió necesitarás una compilación nativa nueva (ver punto 4) para que se aplique en dispositivo.
+6. **Probar en tu móvil** el flujo completo: registro, permisos de ubicación "Siempre" (hay que aceptarlo desde Ajustes en iOS, no solo en el diálogo), detección automática, generar y compartir una tarjeta, seguir a otro usuario de prueba, etc. Yo he verificado que compila (`tsc --noEmit` limpio) y que la navegación no rompe en web, pero no puedo ejercitar GPS/acelerómetro/cámara reales desde aquí.
+7. **Cuando quieras publicar en las tiendas**: cuentas de Apple Developer (99$/año) y Google Play Console (25$ una vez), `eas submit`, capturas de pantalla, política de privacidad (obligatoria por el uso de ubicación en segundo plano).
 
 ## Limitaciones conocidas
 

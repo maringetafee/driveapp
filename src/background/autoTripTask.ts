@@ -4,8 +4,8 @@ import * as TaskManager from 'expo-task-manager';
 import { supabase } from '../lib/supabase';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
 
-export const AUTO_TRIP_TASK = 'driverank-auto-trip';
-const STATE_KEY = 'driverank-auto-trip-state';
+export const AUTO_TRIP_TASK = 'roadly-auto-trip';
+const STATE_KEY = 'roadly-auto-trip-state';
 
 // Umbrales del detector automático: por debajo de START_SPEED_KMH no arrancamos
 // trayecto (evita crear trayectos al caminar); por debajo de STOP_SPEED_KMH
@@ -120,7 +120,7 @@ export async function enableAutoTracking(): Promise<{ ok: boolean; error?: strin
   }
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== 'granted') {
-    return { ok: false, error: 'DriveRank necesita ubicación "Siempre" para detectar trayectos en segundo plano.' };
+    return { ok: false, error: 'Roadly necesita ubicación "Siempre" para detectar trayectos en segundo plano.' };
   }
 
   await saveState(idleState);
@@ -131,7 +131,7 @@ export async function enableAutoTracking(): Promise<{ ok: boolean; error?: strin
       distanceInterval: 25,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'DriveRank está detectando trayectos',
+        notificationTitle: 'Roadly está detectando trayectos',
         notificationBody: 'Se detendrá automáticamente cuando pares el coche.',
       },
       pausesUpdatesAutomatically: false,

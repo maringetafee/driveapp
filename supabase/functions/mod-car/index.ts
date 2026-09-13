@@ -1,4 +1,4 @@
-// DriveRank — Mod Car (fase 4, IA opcional).
+// Roadly — Mod Car (fase 4, IA opcional).
 // Recibe una foto de coche + un prompt de estilo y devuelve una versión
 // modificada SOLO estéticamente, usando la API de edición de imágenes de
 // OpenAI. No hace nada funcional al coche real, es puramente visual para el

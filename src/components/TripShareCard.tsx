@@ -1,7 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { colors, radius } from '../theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../utils/geo';
 import type { Units } from '../types/database';
+
+function scoreTone(score: number | null) {
+  if (score == null) return colors.text;
+  if (score >= 85) return colors.accent;
+  if (score >= 60) return colors.gold;
+  return colors.danger;
+}
 
 interface Props {
   distanceMeters: number;
@@ -22,11 +29,18 @@ export default function TripShareCard({
 }: Props) {
   return (
     <View style={styles.card}>
-      <Text style={styles.brand}>DriveRank</Text>
-      <Text style={styles.username}>@{username}</Text>
+      <View style={styles.brandRow}>
+        <View style={styles.brandMark}>
+          <Text style={styles.brandMarkText}>R</Text>
+        </View>
+        <View>
+          <Text style={styles.brand}>Roadly</Text>
+          <Text style={styles.username}>@{username}</Text>
+        </View>
+      </View>
 
       <View style={styles.scoreBlock}>
-        <Text style={styles.scoreValue}>{drivingScore ?? '—'}</Text>
+        <Text style={[styles.scoreValue, { color: scoreTone(drivingScore) }]}>{drivingScore ?? '—'}</Text>
         <Text style={styles.scoreLabel}>driving score</Text>
       </View>
 
@@ -53,14 +67,26 @@ const styles = StyleSheet.create({
     width: 360,
     padding: 28,
     backgroundColor: colors.background,
-    borderRadius: 24,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  brand: { color: colors.accent, fontSize: 16, fontWeight: '800', letterSpacing: 1 },
-  username: { color: colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: 24 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  brandMark: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandMarkText: { color: colors.accent, fontWeight: '800', fontSize: 13 },
+  brand: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  username: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   scoreBlock: { alignItems: 'center', marginBottom: 28 },
-  scoreValue: { color: colors.text, fontSize: 88, fontWeight: '800', letterSpacing: -3 },
+  scoreValue: { fontSize: 88, fontWeight: '800', letterSpacing: -3 },
   scoreLabel: { color: colors.textMuted, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'center' },

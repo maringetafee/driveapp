@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTripStore } from '../../src/state/tripStore';
 import { useAuthStore } from '../../src/state/authStore';
 import { supabase } from '../../src/lib/supabase';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
 import TripRouteMap from '../../src/components/TripRouteMap';
 
@@ -16,6 +16,7 @@ export default function DriveScreen() {
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const session = useAuthStore((s) => s.session);
   const [saving, setSaving] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
 
   const isTracking = status === 'tracking';
 
@@ -70,24 +71,38 @@ export default function DriveScreen() {
     }
   };
 
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const pressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 8 }).start();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {isTracking && route && (
-          <View style={{ width: '100%' }}>
-            <TripRouteMap route={route} height={180} />
+          <View style={styles.mapWrap}>
+            <TripRouteMap route={route} height={190} />
           </View>
         )}
 
-        <Text style={styles.speedLabel}>Velocidad actual</Text>
-        <Text style={styles.speed}>{formatSpeed(currentSpeedKmh, units)}</Text>
+        <View style={styles.dial}>
+          <Text style={styles.speedLabel}>VELOCIDAD ACTUAL</Text>
+          <Text style={styles.speed}>{formatSpeed(currentSpeedKmh, units)}</Text>
+          {isTracking && (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>EN TRAYECTO</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.statsRow}>
-          <View style={styles.stat}>
+          <View style={styles.statCard}>
             <Text style={styles.statValue}>{formatDistance(distanceMeters, units)}</Text>
             <Text style={styles.statLabel}>Distancia</Text>
           </View>
-          <View style={styles.stat}>
+          <View style={styles.statDivider} />
+          <View style={styles.statCard}>
             <Text style={styles.statValue}>{formatSpeed(maxSpeedKmh, units)}</Text>
             <Text style={styles.statLabel}>Máxima</Text>
           </View>
@@ -95,19 +110,19 @@ export default function DriveScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            isTracking && styles.buttonStop,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={onToggle}
-          disabled={status === 'requesting' || saving}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Guardando…' : isTracking ? 'Terminar trayecto' : 'Iniciar trayecto'}
-          </Text>
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <Pressable
+            onPress={onToggle}
+            onPressIn={pressIn}
+            onPressOut={pressOut}
+            disabled={status === 'requesting' || saving}
+            style={[styles.button, isTracking && styles.buttonStop]}
+          >
+            <Text style={styles.buttonText}>
+              {saving ? 'Guardando…' : isTracking ? 'Terminar trayecto' : 'Iniciar trayecto'}
+            </Text>
+          </Pressable>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -115,22 +130,46 @@ export default function DriveScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, gap: 20 },
-  speedLabel: { color: colors.textMuted, fontSize: 14 },
-  speed: { color: colors.text, fontSize: 72, fontWeight: '800', letterSpacing: -2 },
-  statsRow: { flexDirection: 'row', gap: 32, marginTop: 8 },
-  stat: { alignItems: 'center' },
-  statValue: { color: colors.text, fontSize: 20, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  error: { color: colors.danger, fontSize: 13 },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl, gap: spacing.lg },
+  mapWrap: { width: '100%', borderRadius: radius.lg, overflow: 'hidden', ...shadow.card },
+  dial: { alignItems: 'center', marginTop: spacing.sm },
+  speedLabel: { ...type.label, color: colors.textFaint },
+  speed: { color: colors.text, fontSize: 84, fontWeight: '800', letterSpacing: -3, marginTop: 4 },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.dangerSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    marginTop: spacing.sm,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
+  liveText: { ...type.label, color: colors.danger },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.lg,
+    width: '100%',
+  },
+  statCard: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, height: 36, backgroundColor: colors.border },
+  statValue: { ...type.heading, color: colors.text },
+  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 2 },
+  error: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   button: {
     backgroundColor: colors.accent,
-    borderRadius: 999,
-    paddingVertical: 18,
-    paddingHorizontal: 48,
-    marginTop: 24,
+    borderRadius: radius.pill,
+    paddingVertical: 20,
+    paddingHorizontal: 56,
+    marginTop: spacing.sm,
+    ...shadow.glow,
   },
-  buttonStop: { backgroundColor: colors.danger },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: colors.background, fontWeight: '700', fontSize: 17 },
+  buttonStop: { backgroundColor: colors.danger, shadowColor: colors.danger },
+  buttonText: { color: '#04140D', fontWeight: '800', fontSize: 17, letterSpacing: 0.2 },
 });

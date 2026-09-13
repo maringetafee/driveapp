@@ -1,31 +1,31 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'driverank',
+  name: 'roadly',
   slug: 'driverank',
-  scheme: 'driverank',
+  scheme: 'roadly',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'es.makemyweb.driverank',
+    bundleIdentifier: 'es.makemyweb.roadly',
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
-        'DriveRank usa tu ubicación para detectar y trazar tus trayectos en el mapa.',
+        'Roadly usa tu ubicación para detectar y trazar tus trayectos en el mapa.',
       NSLocationAlwaysAndWhenInUseUsageDescription:
-        'DriveRank necesita ubicación en segundo plano para detectar automáticamente el inicio y fin de tus trayectos, incluso con la app cerrada.',
+        'Roadly necesita ubicación en segundo plano para detectar automáticamente el inicio y fin de tus trayectos, incluso con la app cerrada.',
       NSMotionUsageDescription:
-        'DriveRank usa el acelerómetro para calcular tu driving score (aceleración, frenada y toma de curvas).',
+        'Roadly usa el acelerómetro para calcular tu driving score (aceleración, frenada y toma de curvas).',
       NSPhotoLibraryUsageDescription:
-        'DriveRank necesita acceso a tus fotos para que subas una imagen de tu coche (Mod Car) o guardes la tarjeta de tu trayecto.',
-      NSCameraUsageDescription: 'DriveRank usa la cámara para fotografiar tu coche.',
+        'Roadly necesita acceso a tus fotos para que subas una imagen de tu coche (Mod Car) o guardes la tarjeta de tu trayecto.',
+      NSCameraUsageDescription: 'Roadly usa la cámara para fotografiar tu coche.',
       UIBackgroundModes: ['location', 'fetch'],
     },
   },
   android: {
-    package: 'es.makemyweb.driverank',
+    package: 'es.makemyweb.roadly',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/android-icon-foreground.png',
@@ -53,9 +53,9 @@ const config: ExpoConfig = {
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          'DriveRank necesita ubicación en segundo plano para detectar automáticamente el inicio y fin de tus trayectos, incluso con la app cerrada.',
+          'Roadly necesita ubicación en segundo plano para detectar automáticamente el inicio y fin de tus trayectos, incluso con la app cerrada.',
         locationWhenInUsePermission:
-          'DriveRank usa tu ubicación para detectar y trazar tus trayectos en el mapa.',
+          'Roadly usa tu ubicación para detectar y trazar tus trayectos en el mapa.',
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
       },
@@ -65,15 +65,15 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         photosPermission:
-          'DriveRank necesita acceso a tus fotos para subir una imagen de tu coche.',
-        cameraPermission: 'DriveRank usa la cámara para fotografiar tu coche.',
+          'Roadly necesita acceso a tus fotos para subir una imagen de tu coche.',
+        cameraPermission: 'Roadly usa la cámara para fotografiar tu coche.',
       },
     ],
     [
       'expo-media-library',
       {
-        photosPermission: 'DriveRank guarda la tarjeta de tu trayecto en tus fotos.',
-        savePhotosPermission: 'DriveRank guarda la tarjeta de tu trayecto en tus fotos.',
+        photosPermission: 'Roadly guarda la tarjeta de tu trayecto en tus fotos.',
+        savePhotosPermission: 'Roadly guarda la tarjeta de tu trayecto en tus fotos.',
         isAccessMediaLocationEnabled: false,
       },
     ],

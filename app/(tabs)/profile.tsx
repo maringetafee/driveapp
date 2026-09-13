@@ -4,10 +4,12 @@ import { FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
 import type { Vehicle } from '../../src/types/database';
 import { disableAutoTracking, enableAutoTracking, isAutoTrackingEnabled } from '../../src/background/autoTripTask';
 import BadgesRow from '../../src/components/BadgesRow';
+import Avatar from '../../src/components/ui/Avatar';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
 
 export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
@@ -82,12 +84,15 @@ export default function ProfileScreen() {
         ListHeaderComponent={
           <View style={styles.headerBlock}>
             <View style={styles.headerRow}>
-              <Text style={styles.username}>{profile?.username ?? '—'}</Text>
-              {profile?.username && (
-                <Pressable onPress={() => router.push(`/u/${profile.username}`)}>
-                  <Text style={styles.viewPublicLink}>Ver perfil público</Text>
-                </Pressable>
-              )}
+              <Avatar username={profile?.username ?? '?'} size={56} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.username}>{profile?.username ?? '—'}</Text>
+                {profile?.username && (
+                  <Pressable onPress={() => router.push(`/u/${profile.username}`)}>
+                    <Text style={styles.viewPublicLink}>Ver perfil público ›</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
 
             <View style={styles.autoTrackRow}>
@@ -97,7 +102,12 @@ export default function ProfileScreen() {
                   Registra trayectos en segundo plano sin pulsar iniciar/terminar.
                 </Text>
               </View>
-              <Switch value={autoTracking} onValueChange={onToggleAutoTracking} />
+              <Switch
+                value={autoTracking}
+                onValueChange={onToggleAutoTracking}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor={colors.text}
+              />
             </View>
             {autoTrackingError && <Text style={styles.error}>{autoTrackingError}</Text>}
 
@@ -115,31 +125,34 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Marca"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   value={newMake}
                   onChangeText={setNewMake}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Modelo"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   value={newModel}
                   onChangeText={setNewModel}
                 />
-                <Pressable
-                  style={styles.addVehicleButton}
+                <PrimaryButton
+                  title="Guardar coche"
                   onPress={onAddVehicle}
-                  disabled={savingVehicle || !newMake.trim() || !newModel.trim()}
-                >
-                  <Text style={styles.addVehicleButtonText}>{savingVehicle ? 'Guardando…' : 'Guardar coche'}</Text>
-                </Pressable>
+                  loading={savingVehicle}
+                  disabled={!newMake.trim() || !newModel.trim()}
+                />
               </View>
             )}
           </View>
         }
         ListEmptyComponent={<Text style={styles.empty}>Aún no has añadido coches.</Text>}
         renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => router.push(`/vehicle/${item.id}`)}>
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+            onPress={() => router.push(`/vehicle/${item.id}`)}
+          >
+            <View style={[styles.vehicleDot, item.is_default && styles.vehicleDotActive]} />
             <Text style={styles.vehicleName}>
               {item.make} {item.model}
               {item.year ? ` · ${item.year}` : ''}
@@ -148,9 +161,7 @@ export default function ProfileScreen() {
           </Pressable>
         )}
         ListFooterComponent={
-          <Pressable style={styles.signOut} onPress={() => signOut()}>
-            <Text style={styles.signOutText}>Cerrar sesión</Text>
-          </Pressable>
+          <PrimaryButton title="Cerrar sesión" onPress={() => signOut()} variant="ghost" style={{ marginTop: spacing.xl }} />
         }
       />
     </SafeAreaView>
@@ -159,60 +170,51 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: 16, gap: 10 },
-  headerBlock: { marginBottom: 16, gap: 10 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  username: { color: colors.text, fontSize: 28, fontWeight: '800' },
-  viewPublicLink: { color: colors.accentAlt, fontSize: 13 },
-  subtitle: { color: colors.textMuted, fontSize: 14, marginTop: 4 },
+  list: { padding: spacing.lg, gap: spacing.md },
+  headerBlock: { marginBottom: spacing.sm, gap: spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
+  username: { ...type.title, color: colors.text },
+  viewPublicLink: { color: colors.accentAlt, ...type.caption, fontWeight: '700', marginTop: 2 },
+  subtitle: { ...type.subheading, color: colors.text, marginTop: spacing.sm },
   garageHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  addVehicleForm: { gap: 8 },
+  addVehicleForm: { gap: spacing.sm },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 13,
     color: colors.text,
     fontSize: 15,
   },
-  addVehicleButton: { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  addVehicleButtonText: { color: colors.background, fontWeight: '700' },
   autoTrackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: radius.lg,
+    padding: spacing.md,
   },
-  autoTrackTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  autoTrackSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  error: { color: colors.danger, fontSize: 13 },
+  autoTrackTitle: { ...type.subheading, color: colors.text },
+  autoTrackSubtitle: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 20 },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    padding: spacing.lg,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.md,
   },
-  vehicleName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  defaultBadge: { color: colors.accent, fontSize: 12, fontWeight: '700' },
-  signOut: {
-    marginTop: 24,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  signOutText: { color: colors.danger, fontWeight: '700' },
+  cardPressed: { backgroundColor: colors.surfaceAlt },
+  vehicleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
+  vehicleDotActive: { backgroundColor: colors.accent },
+  vehicleName: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
+  defaultBadge: { color: colors.accent, fontSize: 12, fontWeight: '800' },
 });

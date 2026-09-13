@@ -3,8 +3,6 @@ import { Link } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -12,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors } from '../../src/theme/colors';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
+import { authStyles as styles } from './authStyles';
 
 export default function SignupScreen() {
   const signUp = useAuthStore((s) => s.signUp);
@@ -20,6 +20,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState<'username' | 'email' | 'password' | null>(null);
 
   const onSubmit = async () => {
     setError(null);
@@ -40,46 +41,57 @@ export default function SignupScreen() {
         style={styles.flex}
       >
         <View style={styles.content}>
+          <View style={styles.mark}>
+            <Text style={styles.markText}>R</Text>
+          </View>
           <Text style={styles.title}>Crea tu cuenta</Text>
           <Text style={styles.subtitle}>Únete a la comunidad de conductores.</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre de usuario"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            value={username}
-            onChangeText={setUsername}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Contraseña (mín. 6 caracteres)"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            autoComplete="password-new"
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.form}>
+            <TextInput
+              style={[styles.input, focused === 'username' && styles.inputFocused]}
+              placeholder="Nombre de usuario"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}
+              onFocus={() => setFocused('username')}
+              onBlur={() => setFocused(null)}
+            />
+            <TextInput
+              style={[styles.input, focused === 'email' && styles.inputFocused]}
+              placeholder="Email"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+            />
+            <TextInput
+              style={[styles.input, focused === 'password' && styles.inputFocused]}
+              placeholder="Contraseña (mín. 6 caracteres)"
+              placeholderTextColor={colors.textFaint}
+              secureTextEntry
+              autoComplete="password-new"
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+            />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+            {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            onPress={onSubmit}
-            disabled={loading || !email || !password || !username}
-          >
-            <Text style={styles.buttonText}>{loading ? 'Creando…' : 'Crear cuenta'}</Text>
-          </Pressable>
+            <PrimaryButton
+              title="Crear cuenta"
+              onPress={onSubmit}
+              loading={loading}
+              disabled={!email || !password || !username}
+              style={{ marginTop: 4 }}
+            />
+          </View>
 
           <Link href="/(auth)/login" style={styles.link}>
             <Text style={styles.linkText}>¿Ya tienes cuenta? Entra</Text>
@@ -89,33 +101,3 @@ export default function SignupScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 12 },
-  title: { fontSize: 30, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: colors.textMuted, marginBottom: 24 },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: colors.text,
-    fontSize: 16,
-  },
-  error: { color: colors.danger, fontSize: 13 },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: colors.background, fontWeight: '700', fontSize: 16 },
-  link: { alignSelf: 'center', marginTop: 16 },
-  linkText: { color: colors.accentAlt, fontSize: 14 },
-});

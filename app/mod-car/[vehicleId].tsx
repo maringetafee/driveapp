@@ -6,7 +6,8 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { supabase } from '../../src/lib/supabase';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
 
 const STYLE_PRESETS = ['Wide body deportivo', 'JDM bajado', 'Off-road elevado', 'Look eléctrico neón'];
 
@@ -124,20 +125,22 @@ export default function ModCarScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Pressable
-          style={styles.generateButton}
+        <PrimaryButton
+          title="✨ Generar"
           onPress={onGenerate}
-          disabled={!sourceImage || generating}
-        >
-          {generating ? <ActivityIndicator color={colors.background} /> : <Text style={styles.generateButtonText}>Generar</Text>}
-        </Pressable>
+          disabled={!sourceImage}
+          loading={generating}
+        />
 
         {resultUri && (
           <View style={styles.resultBlock}>
             <Image source={{ uri: resultUri }} style={styles.image} />
-            <Pressable style={styles.saveButton} onPress={onSaveAsVehiclePhoto} disabled={saving}>
-              <Text style={styles.saveButtonText}>{saving ? 'Guardando…' : 'Usar como foto del coche'}</Text>
-            </Pressable>
+            <PrimaryButton
+              title={saving ? 'Guardando…' : 'Usar como foto del coche'}
+              onPress={onSaveAsVehiclePhoto}
+              loading={saving}
+              variant="secondary"
+            />
           </View>
         )}
       </ScrollView>
@@ -147,45 +150,43 @@ export default function ModCarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, gap: 14 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
-  subtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+  content: { padding: spacing.xl, gap: spacing.md },
+  title: { ...type.heading, color: colors.text, fontSize: 26 },
+  subtitle: { ...type.body, color: colors.textMuted, lineHeight: 19 },
   imagePicker: {
     height: 200,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  imagePickerText: { color: colors.textMuted },
-  image: { width: '100%', height: '100%', borderRadius: 16 },
-  label: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
-  presetRow: { gap: 8 },
-  presetPill: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
-  presetPillActive: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
-  presetText: { color: colors.textMuted, fontSize: 13 },
+  imagePickerText: { color: colors.textMuted, fontWeight: '600' },
+  image: { width: '100%', height: '100%', borderRadius: radius.xl },
+  label: { ...type.caption, color: colors.textMuted, marginTop: spacing.xs },
+  presetRow: { gap: spacing.sm },
+  presetPill: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  presetPillActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  presetText: { color: colors.textMuted, ...type.caption },
   presetTextActive: { color: colors.accent },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 13,
     color: colors.text,
   },
-  error: { color: colors.danger, fontSize: 13 },
-  generateButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  generateButtonText: { color: colors.background, fontWeight: '700', fontSize: 16 },
-  resultBlock: { gap: 12 },
-  saveButton: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  saveButtonText: { color: colors.accent, fontWeight: '700' },
+  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  resultBlock: { gap: spacing.md },
 });

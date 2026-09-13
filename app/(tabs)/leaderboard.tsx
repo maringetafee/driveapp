@@ -4,8 +4,11 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, V
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
+import Avatar from '../../src/components/ui/Avatar';
+
+const MEDAL_COLOR: Record<number, string> = { 1: colors.gold, 2: colors.silver, 3: colors.bronze };
 import type { LeaderboardMetric, LeaderboardPeriod, LeaderboardScope } from '../../src/types/database';
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
@@ -117,10 +120,21 @@ export default function LeaderboardScreen() {
           ListEmptyComponent={<Text style={styles.empty}>Sin datos todavía para este filtro.</Text>}
           renderItem={({ item }) => (
             <Pressable
-              style={[styles.row, item.user_id === session?.user.id && styles.rowMe]}
+              style={({ pressed }) => [
+                styles.row,
+                item.user_id === session?.user.id && styles.rowMe,
+                pressed && styles.rowPressed,
+              ]}
               onPress={() => router.push(`/u/${item.username}`)}
             >
-              <Text style={styles.rank}>#{item.rank}</Text>
+              {MEDAL_COLOR[item.rank] ? (
+                <View style={[styles.medal, { borderColor: MEDAL_COLOR[item.rank] }]}>
+                  <Text style={[styles.medalText, { color: MEDAL_COLOR[item.rank] }]}>{item.rank}</Text>
+                </View>
+              ) : (
+                <Text style={styles.rank}>#{item.rank}</Text>
+              )}
+              <Avatar username={item.username} size={32} />
               <Text style={styles.username}>@{item.username}</Text>
               <Text style={styles.value}>{formatValue(item)}</Text>
             </Pressable>
@@ -129,6 +143,7 @@ export default function LeaderboardScreen() {
             myRankIndex >= 30 ? (
               <View style={[styles.row, styles.rowMe, styles.rowMePinned]}>
                 <Text style={styles.rank}>#{rows[myRankIndex].rank}</Text>
+                <Avatar username={rows[myRankIndex].username} size={32} />
                 <Text style={styles.username}>@{rows[myRankIndex].username} (tú)</Text>
                 <Text style={styles.value}>{formatValue(rows[myRankIndex])}</Text>
               </View>
@@ -169,35 +184,45 @@ function FilterRow<T extends string>({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filters: { paddingTop: 12, gap: 8 },
-  filterRow: { paddingHorizontal: 16, gap: 8 },
+  filters: { paddingTop: spacing.md, gap: spacing.sm },
+  filterRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   pill: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
   },
-  pillActive: { backgroundColor: colors.surfaceAlt, borderColor: colors.accent },
-  pillText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  pillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  pillText: { color: colors.textMuted, ...type.caption },
   pillTextActive: { color: colors.accent },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  list: { padding: 16, gap: 8 },
+  list: { padding: spacing.lg, gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
+    padding: spacing.md,
   },
-  rowMe: { borderColor: colors.accent },
-  rowMePinned: { marginHorizontal: 16 },
-  rank: { color: colors.textMuted, fontWeight: '700', width: 36 },
-  username: { color: colors.text, fontWeight: '600', flex: 1 },
-  value: { color: colors.accent, fontWeight: '700' },
+  rowPressed: { backgroundColor: colors.surfaceAlt },
+  rowMe: { borderColor: colors.accent, borderWidth: 1.5 },
+  rowMePinned: { marginHorizontal: spacing.lg },
+  rank: { color: colors.textMuted, fontWeight: '700', width: 28, textAlign: 'center' },
+  medal: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medalText: { fontWeight: '800', fontSize: 13 },
+  username: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
+  value: { color: colors.accent, fontWeight: '800', fontSize: 15 },
   empty: { color: colors.textMuted, textAlign: 'center' },
   error: { color: colors.danger, textAlign: 'center', paddingBottom: 12, fontSize: 12 },
 });

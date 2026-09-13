@@ -4,9 +4,10 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
 import BadgesRow from '../../src/components/BadgesRow';
+import Avatar from '../../src/components/ui/Avatar';
 import type { Profile, Vehicle } from '../../src/types/database';
 
 interface AggregateStats {
@@ -145,12 +146,17 @@ export default function PublicProfileScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.username}>@{profile.username}</Text>
-            {(profile.city || profile.country) && (
-              <Text style={styles.location}>
-                {[profile.city, profile.country].filter(Boolean).join(', ')}
-              </Text>
-            )}
+            <View style={styles.identityRow}>
+              <Avatar username={profile.username} size={64} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.username}>@{profile.username}</Text>
+                {(profile.city || profile.country) && (
+                  <Text style={styles.location}>
+                    {[profile.city, profile.country].filter(Boolean).join(', ')}
+                  </Text>
+                )}
+              </View>
+            </View>
 
             <View style={styles.followRow}>
               <Text style={styles.followCount}>
@@ -163,12 +169,16 @@ export default function PublicProfileScreen() {
 
             {!isOwnProfile && myUserId && (
               <Pressable
-                style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                style={({ pressed }) => [
+                  styles.followButton,
+                  isFollowing && styles.followButtonActive,
+                  pressed && { opacity: 0.85 },
+                ]}
                 onPress={onToggleFollow}
                 disabled={followBusy}
               >
                 <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                  {isFollowing ? 'Siguiendo' : 'Seguir'}
+                  {isFollowing ? '✓ Siguiendo' : 'Seguir'}
                 </Text>
               </Pressable>
             )}
@@ -211,44 +221,44 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  list: { padding: 16, gap: 10 },
-  header: { marginBottom: 16, gap: 12 },
-  username: { color: colors.text, fontSize: 28, fontWeight: '800' },
-  location: { color: colors.textMuted, fontSize: 13, marginTop: -8 },
-  followRow: { flexDirection: 'row', gap: 16 },
+  list: { padding: spacing.lg, gap: spacing.md },
+  header: { marginBottom: spacing.sm, gap: spacing.md },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  username: { ...type.title, color: colors.text },
+  location: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  followRow: { flexDirection: 'row', gap: spacing.lg },
   followCount: { color: colors.textMuted, fontSize: 13 },
   followNumber: { color: colors.text, fontWeight: '700' },
   followButton: {
     alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
+    borderRadius: radius.pill,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.xl,
     backgroundColor: colors.accent,
   },
-  followButtonActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  followButtonText: { color: colors.background, fontWeight: '700' },
-  followButtonTextActive: { color: colors.text },
-  statsGrid: { flexDirection: 'row', gap: 10 },
+  followButtonActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1.5, borderColor: colors.accent },
+  followButtonText: { color: '#04140D', fontWeight: '800' },
+  followButtonTextActive: { color: colors.accent },
+  statsGrid: { flexDirection: 'row', gap: spacing.sm },
   stat: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: spacing.md,
     alignItems: 'center',
   },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2, textAlign: 'center' },
-  subtitle: { color: colors.textMuted, fontSize: 14 },
+  statValue: { ...type.heading, color: colors.text },
+  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
+  subtitle: { ...type.subheading, color: colors.text },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 12 },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    padding: spacing.lg,
   },
-  vehicleName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  vehicleName: { ...type.body, color: colors.text, fontWeight: '700' },
 });

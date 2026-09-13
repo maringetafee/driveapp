@@ -3,8 +3,6 @@ import { Link } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -12,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors } from '../../src/theme/colors';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
+import { authStyles as styles } from './authStyles';
 
 export default function LoginScreen() {
   const signIn = useAuthStore((s) => s.signIn);
@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
 
   const onSubmit = async () => {
     setError(null);
@@ -39,38 +40,47 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>DriveRank</Text>
+          <View style={styles.mark}>
+            <Text style={styles.markText}>R</Text>
+          </View>
+          <Text style={styles.title}>Roadly</Text>
           <Text style={styles.subtitle}>Cada trayecto cuenta.</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Contraseña"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            autoComplete="password"
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.form}>
+            <TextInput
+              style={[styles.input, focused === 'email' && styles.inputFocused]}
+              placeholder="Email"
+              placeholderTextColor={colors.textFaint}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+            />
+            <TextInput
+              style={[styles.input, focused === 'password' && styles.inputFocused]}
+              placeholder="Contraseña"
+              placeholderTextColor={colors.textFaint}
+              secureTextEntry
+              autoComplete="password"
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+            />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+            {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            onPress={onSubmit}
-            disabled={loading || !email || !password}
-          >
-            <Text style={styles.buttonText}>{loading ? 'Entrando…' : 'Entrar'}</Text>
-          </Pressable>
+            <PrimaryButton
+              title="Entrar"
+              onPress={onSubmit}
+              loading={loading}
+              disabled={!email || !password}
+              style={{ marginTop: 4 }}
+            />
+          </View>
 
           <Link href="/(auth)/signup" style={styles.link}>
             <Text style={styles.linkText}>¿No tienes cuenta? Regístrate</Text>
@@ -80,33 +90,3 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 12 },
-  title: { fontSize: 34, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: colors.textMuted, marginBottom: 24 },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: colors.text,
-    fontSize: 16,
-  },
-  error: { color: colors.danger, fontSize: 13 },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: colors.background, fontWeight: '700', fontSize: 16 },
-  link: { alignSelf: 'center', marginTop: 16 },
-  linkText: { color: colors.accentAlt, fontSize: 14 },
-});

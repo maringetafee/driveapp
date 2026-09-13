@@ -1,4 +1,4 @@
--- DriveRank — bucket de Storage para fotos de vehículos (onboarding, garaje,
+-- Roadly — bucket de Storage para fotos de vehículos (onboarding, garaje,
 -- resultados de Mod Car). Público en lectura (son fotos de perfil/coche que
 -- se muestran en perfiles públicos); solo el dueño del vehículo puede
 -- escribir en la carpeta con el id de su vehículo.

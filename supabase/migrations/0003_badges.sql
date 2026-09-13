@@ -1,4 +1,4 @@
--- DriveRank — insignias (fase 4). Se otorgan automáticamente con un trigger
+-- Roadly — insignias (fase 4). Se otorgan automáticamente con un trigger
 -- tras cada trayecto insertado, así no depende de un job aparte ni de que la
 -- app calcule nada client-side. Deliberadamente no hay ninguna insignia por
 -- alcanzar una velocidad alta: iría en contra del aviso de seguridad del
@@ -6,7 +6,7 @@
 -- conducción suave (driving_score alto).
 
 insert into public.badges (code, name, description) values
-  ('primer_trayecto', 'Primer trayecto', 'Registraste tu primer trayecto en DriveRank.'),
+  ('primer_trayecto', 'Primer trayecto', 'Registraste tu primer trayecto en Roadly.'),
   ('distancia_100', '100 km recorridos', 'Has acumulado 100 km entre todos tus trayectos.'),
   ('distancia_500', '500 km recorridos', 'Has acumulado 500 km entre todos tus trayectos.'),
   ('distancia_1000', '1000 km recorridos', 'Has acumulado 1000 km entre todos tus trayectos.'),

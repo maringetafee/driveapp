@@ -4,8 +4,16 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
+import Avatar from '../../src/components/ui/Avatar';
+
+function scoreTone(score: number | null) {
+  if (score == null) return colors.textMuted;
+  if (score >= 85) return colors.accent;
+  if (score >= 60) return colors.gold;
+  return colors.danger;
+}
 
 interface FeedItem {
   id: string;
@@ -115,26 +123,37 @@ export default function FeedScreen() {
         }
         renderItem={({ item }) => {
           const liked = likedIds.has(item.id);
+          const username = item.profiles?.username ?? '—';
           return (
             <View style={styles.card}>
-              <Pressable onPress={() => router.push(`/u/${item.profiles?.username}`)}>
-                <Text style={styles.author}>@{item.profiles?.username ?? '—'}</Text>
-              </Pressable>
-              <Pressable onPress={() => router.push(`/trip/${item.id}`)}>
-                <View style={styles.statsRow}>
-                  <Text style={styles.stat}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
-                  {item.driving_score != null && (
-                    <Text style={styles.stat}>Score {item.driving_score}</Text>
-                  )}
+              <Pressable style={styles.authorRow} onPress={() => router.push(`/u/${username}`)}>
+                <Avatar username={username} size={36} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.author}>@{username}</Text>
                   <Text style={styles.date}>
                     {new Date(item.started_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                   </Text>
                 </View>
+                {item.driving_score != null && (
+                  <View style={[styles.scorePill, { borderColor: scoreTone(item.driving_score) }]}>
+                    <Text style={[styles.scoreText, { color: scoreTone(item.driving_score) }]}>
+                      {item.driving_score}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
+              <Pressable onPress={() => router.push(`/trip/${item.id}`)}>
+                <View style={styles.statsRow}>
+                  <Text style={styles.stat}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
+                </View>
+              </Pressable>
+              <View style={styles.divider} />
               <View style={styles.actionsRow}>
                 <Pressable style={styles.actionButton} onPress={() => onToggleLike(item.id, liked)}>
                   <Text style={[styles.actionIcon, liked && styles.actionIconActive]}>{liked ? '♥' : '♡'}</Text>
-                  <Text style={styles.actionCount}>{item.trip_likes?.[0]?.count ?? 0}</Text>
+                  <Text style={[styles.actionCount, liked && styles.actionIconActive]}>
+                    {item.trip_likes?.[0]?.count ?? 0}
+                  </Text>
                 </Pressable>
                 <Pressable style={styles.actionButton} onPress={() => router.push(`/trip/${item.id}`)}>
                   <Text style={styles.actionIcon}>💬</Text>
@@ -151,25 +170,28 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: 16, gap: 10 },
-  header: { color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 12 },
+  list: { padding: spacing.lg, gap: spacing.md },
+  header: { ...type.title, color: colors.text, marginBottom: spacing.sm },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 40, lineHeight: 20 },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
-    gap: 10,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
-  author: { color: colors.accent, fontWeight: '700', fontSize: 14 },
-  statsRow: { flexDirection: 'row', gap: 16, alignItems: 'center' },
-  stat: { color: colors.text, fontWeight: '600', fontSize: 14 },
-  date: { color: colors.textMuted, fontSize: 12, marginLeft: 'auto' },
-  actionsRow: { flexDirection: 'row', gap: 16 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  author: { ...type.subheading, color: colors.text },
+  statsRow: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
+  stat: { ...type.body, color: colors.textMuted },
+  date: { ...type.caption, color: colors.textFaint, marginTop: 1 },
+  scorePill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
+  scoreText: { fontSize: 12, fontWeight: '800' },
+  divider: { height: 1, backgroundColor: colors.border },
+  actionsRow: { flexDirection: 'row', gap: spacing.xl },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionIcon: { color: colors.textMuted, fontSize: 16 },
+  actionIcon: { color: colors.textMuted, fontSize: 17 },
   actionIconActive: { color: colors.danger },
-  actionCount: { color: colors.textMuted, fontSize: 13 },
+  actionCount: { color: colors.textMuted, ...type.caption },
 });

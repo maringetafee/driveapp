@@ -1,4 +1,4 @@
--- DriveRank — esquema inicial (MVP: auth, vehículos, trayectos, stats)
+-- Roadly — esquema inicial (MVP: auth, vehículos, trayectos, stats)
 -- Ejecutar con: supabase db push  (o pegar en el SQL editor del proyecto Supabase)
 
 create extension if not exists "uuid-ossp";

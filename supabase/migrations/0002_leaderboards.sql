@@ -1,4 +1,4 @@
--- DriveRank — leaderboards on-demand (fase 3).
+-- Roadly — leaderboards on-demand (fase 3).
 -- No dependemos de un cron para el MVP: la función calcula el ranking al
 -- vuelo a partir de `trips`. A partir de unos cuantos miles de trayectos por
 -- ámbito, conviene rellenar `leaderboard_snapshots` periódicamente en vez de

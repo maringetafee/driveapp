@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import type { Vehicle } from '../../src/types/database';
 
 interface VehicleStats {
@@ -120,15 +121,14 @@ export default function VehicleDetailScreen() {
         {isMine && (
           <View style={styles.actions}>
             {!vehicle.is_default && (
-              <Pressable style={styles.secondaryButton} onPress={onSetDefault} disabled={settingDefault}>
-                <Text style={styles.secondaryButtonText}>
-                  {settingDefault ? 'Guardando…' : 'Hacer vehículo principal'}
-                </Text>
-              </Pressable>
+              <PrimaryButton
+                title={settingDefault ? 'Guardando…' : 'Hacer vehículo principal'}
+                onPress={onSetDefault}
+                loading={settingDefault}
+                variant="ghost"
+              />
             )}
-            <Pressable style={styles.primaryButton} onPress={() => router.push(`/mod-car/${vehicle.id}`)}>
-              <Text style={styles.primaryButtonText}>Mod Car (IA)</Text>
-            </Pressable>
+            <PrimaryButton title="✨ Mod Car (IA)" onPress={() => router.push(`/mod-car/${vehicle.id}`)} />
           </View>
         )}
       </ScrollView>
@@ -148,32 +148,22 @@ function Stat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 24, gap: 16 },
-  image: { width: '100%', height: 200, borderRadius: 16, backgroundColor: colors.surface },
+  content: { padding: spacing.xl, gap: spacing.lg },
+  image: { width: '100%', height: 200, borderRadius: radius.xl, backgroundColor: colors.surface },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   imagePlaceholderText: { color: colors.textMuted },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  title: { ...type.heading, color: colors.text, fontSize: 24 },
   defaultBadge: { color: colors.accent, fontSize: 13, fontWeight: '700', marginTop: -12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   statCard: {
     flexBasis: '47%',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.lg,
   },
-  statValue: { color: colors.text, fontSize: 20, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  actions: { gap: 10, marginTop: 8 },
-  primaryButton: { backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  primaryButtonText: { color: colors.background, fontWeight: '700' },
-  secondaryButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryButtonText: { color: colors.text, fontWeight: '700' },
+  statValue: { ...type.heading, color: colors.text },
+  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 4 },
+  actions: { gap: spacing.sm, marginTop: spacing.xs },
 });

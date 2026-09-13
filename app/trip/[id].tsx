@@ -16,11 +16,20 @@ import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
 import TripRouteMap from '../../src/components/TripRouteMap';
 import TripShareCard from '../../src/components/TripShareCard';
+import Avatar from '../../src/components/ui/Avatar';
+import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import type { Profile, Trip, TripMetrics } from '../../src/types/database';
+
+function scoreTone(score: number | null) {
+  if (score == null) return colors.textMuted;
+  if (score >= 85) return colors.accent;
+  if (score >= 60) return colors.gold;
+  return colors.danger;
+}
 
 interface CommentRow {
   id: string;
@@ -174,8 +183,10 @@ export default function TripSummaryScreen() {
           </View>
 
           {trip.driving_score != null && (
-            <View style={styles.scoreCard}>
-              <Text style={styles.scoreValue}>{trip.driving_score}</Text>
+            <View style={[styles.scoreCard, { borderColor: scoreTone(trip.driving_score) }]}>
+              <Text style={[styles.scoreValue, { color: scoreTone(trip.driving_score) }]}>
+                {trip.driving_score}
+              </Text>
               <Text style={styles.scoreLabel}>driving score</Text>
             </View>
           )}
@@ -189,13 +200,16 @@ export default function TripSummaryScreen() {
           )}
 
           <View style={styles.socialRow}>
-            <Pressable style={styles.likeButton} onPress={onToggleLike} disabled={!myUserId}>
+            <Pressable style={({ pressed }) => [styles.likeButton, pressed && { opacity: 0.8 }]} onPress={onToggleLike} disabled={!myUserId}>
               <Text style={[styles.likeIcon, liked && styles.likeIconActive]}>{liked ? '♥' : '♡'}</Text>
-              <Text style={styles.likeCount}>{likeCount}</Text>
+              <Text style={[styles.likeCount, liked && styles.likeIconActive]}>{likeCount}</Text>
             </Pressable>
-            <Pressable style={styles.shareButtonInline} onPress={onShare} disabled={sharing}>
-              <Text style={styles.shareButtonText}>{sharing ? 'Generando…' : 'Compartir tarjeta'}</Text>
-            </Pressable>
+            <PrimaryButton
+              title={sharing ? 'Generando…' : 'Compartir tarjeta'}
+              onPress={onShare}
+              loading={sharing}
+              style={{ flex: 1 }}
+            />
           </View>
 
           <View style={styles.commentsSection}>
@@ -203,8 +217,11 @@ export default function TripSummaryScreen() {
             {comments.length === 0 && <Text style={styles.empty}>Sé el primero en comentar.</Text>}
             {comments.map((c) => (
               <View key={c.id} style={styles.commentRow}>
-                <Text style={styles.commentAuthor}>@{c.profiles?.username ?? '—'}</Text>
-                <Text style={styles.commentBody}>{c.body}</Text>
+                <Avatar username={c.profiles?.username ?? '?'} size={30} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.commentAuthor}>@{c.profiles?.username ?? '—'}</Text>
+                  <Text style={styles.commentBody}>{c.body}</Text>
+                </View>
               </View>
             ))}
 
@@ -213,13 +230,15 @@ export default function TripSummaryScreen() {
                 <TextInput
                   style={styles.commentInput}
                   placeholder="Escribe un comentario…"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   value={commentText}
                   onChangeText={setCommentText}
                   maxLength={500}
                 />
                 <Pressable onPress={onPostComment} disabled={postingComment || !commentText.trim()}>
-                  <Text style={styles.commentSend}>{postingComment ? '…' : 'Enviar'}</Text>
+                  <Text style={[styles.commentSend, (postingComment || !commentText.trim()) && { opacity: 0.4 }]}>
+                    {postingComment ? '…' : 'Enviar'}
+                  </Text>
                 </Pressable>
               </View>
             )}
@@ -265,86 +284,81 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 24, gap: 20 },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  content: { padding: spacing.xl, gap: spacing.lg },
+  title: { ...type.heading, color: colors.text },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   statCard: {
     flexBasis: '47%',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.lg,
   },
-  statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  statValue: { ...type.heading, color: colors.text },
+  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 4 },
   scoreCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 20,
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    paddingVertical: spacing.xl,
+    ...shadow.card,
   },
-  scoreValue: { color: colors.accent, fontSize: 48, fontWeight: '800' },
-  scoreLabel: { color: colors.textMuted, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  metricsRow: { flexDirection: 'row', gap: 10 },
+  scoreValue: { fontSize: 56, fontWeight: '800', letterSpacing: -2 },
+  scoreLabel: { ...type.label, color: colors.textMuted, marginTop: 2 },
+  metricsRow: { flexDirection: 'row', gap: spacing.sm },
   miniStat: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: spacing.md,
     alignItems: 'center',
   },
-  miniStatValue: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  miniStatLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2, textAlign: 'center' },
-  socialRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  miniStatValue: { ...type.subheading, color: colors.text },
+  miniStatLabel: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
+  socialRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   likeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
   likeIcon: { color: colors.textMuted, fontSize: 18 },
   likeIconActive: { color: colors.danger },
   likeCount: { color: colors.text, fontWeight: '700' },
-  shareButtonInline: {
-    flex: 1,
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  shareButtonText: { color: colors.background, fontWeight: '700', fontSize: 15 },
-  commentsSection: { gap: 10 },
-  commentsTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  commentsSection: { gap: spacing.sm },
+  commentsTitle: { ...type.subheading, color: colors.text },
   empty: { color: colors.textMuted, fontSize: 13 },
   commentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: spacing.md,
   },
   commentAuthor: { color: colors.accent, fontSize: 12, fontWeight: '700', marginBottom: 2 },
   commentBody: { color: colors.text, fontSize: 14 },
-  commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   commentInput: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 11,
     color: colors.text,
   },
-  commentSend: { color: colors.accentAlt, fontWeight: '700' },
+  commentSend: { color: colors.accentAlt, fontWeight: '800' },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },
 });

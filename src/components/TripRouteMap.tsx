@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import type { LineString, Position } from 'geojson';
-import { colors } from '../theme/colors';
+import { colors, radius } from '../theme/colors';
 
 interface Props {
   route: LineString | null;
@@ -55,7 +55,7 @@ export default function TripRouteMap({ route, height = 220 }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
