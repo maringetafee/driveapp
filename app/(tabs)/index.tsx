@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTripStore } from '../../src/state/tripStore';
@@ -7,19 +7,65 @@ import { useAuthStore } from '../../src/state/authStore';
 import { supabase } from '../../src/lib/supabase';
 import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
+import { computeStreak, timeGreeting } from '../../src/utils/homeInsights';
+import { scoreTone } from '../../src/utils/scoreTone';
 import TripRouteMap from '../../src/components/TripRouteMap';
+import StatRow from '../../src/components/ui/StatRow';
+import Divider from '../../src/components/ui/Divider';
+import SectionHeader from '../../src/components/ui/SectionHeader';
+
+interface LastTrip {
+  id: string;
+  started_at: string;
+  distance_meters: number | null;
+  driving_score: number | null;
+}
 
 export default function DriveScreen() {
   const { status, points, currentSpeedKmh, maxSpeedKmh, distanceMeters, error, start, stop } =
     useTripStore();
   const route = useMemo(() => (points.length > 1 ? toLineString(points) : null), [points]);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
+  const username = useAuthStore((s) => s.profile?.username);
   const session = useAuthStore((s) => s.session);
   const [saving, setSaving] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [lastTrip, setLastTrip] = useState<LastTrip | null>(null);
+  const [streak, setStreak] = useState(0);
   const scale = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
   const isTracking = status === 'tracking';
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      supabase
+        .from('trips')
+        .select('id, started_at, distance_meters, driving_score')
+        .eq('user_id', session.user.id)
+        .order('started_at', { ascending: false })
+        .limit(30)
+        .then(({ data }) => {
+          const rows = data ?? [];
+          setLastTrip(rows[0] ?? null);
+          setStreak(computeStreak(rows.map((r) => r.started_at)));
+        });
+    }, [session])
+  );
+
+  useEffect(() => {
+    if (!isTracking || !useTripStore.getState().startedAt) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = useTripStore.getState().startedAt as number;
+    setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isTracking]);
 
   useEffect(() => {
     if (!isTracking) {
@@ -92,12 +138,28 @@ export default function DriveScreen() {
   const pressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 8 }).start();
 
+  const statItems = isTracking
+    ? [
+        { label: 'Distancia', value: formatDistance(distanceMeters, units) },
+        { label: 'Duración', value: formatDuration(elapsedSeconds) },
+      ]
+    : [
+        { label: 'Distancia', value: formatDistance(distanceMeters, units) },
+        { label: 'Vel. máxima', value: formatSpeed(maxSpeedKmh, units) },
+      ];
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
+        {!isTracking && (
+          <Text style={styles.greeting}>
+            {timeGreeting()}{username ? `, ${username}` : ''}
+          </Text>
+        )}
+
         {isTracking && route && (
           <View style={styles.mapWrap}>
-            <TripRouteMap route={route} height={190} />
+            <TripRouteMap route={route} height={170} />
           </View>
         )}
 
@@ -112,21 +174,11 @@ export default function DriveScreen() {
           )}
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatDistance(distanceMeters, units)}</Text>
-            <Text style={styles.statLabel}>Distancia</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatSpeed(maxSpeedKmh, units)}</Text>
-            <Text style={styles.statLabel}>Máxima</Text>
-          </View>
-        </View>
+        <StatRow items={statItems} style={styles.statRow} />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <Animated.View style={{ transform: [{ scale }] }}>
+        <Animated.View style={{ transform: [{ scale }], width: '100%', alignItems: 'center' }}>
           <Pressable
             onPress={onToggle}
             onPressIn={pressIn}
@@ -139,6 +191,52 @@ export default function DriveScreen() {
             </Text>
           </Pressable>
         </Animated.View>
+
+        {!isTracking && (lastTrip || streak >= 2) && (
+          <>
+            <Divider style={styles.fullDivider} />
+            <View style={styles.insightsBlock}>
+              {lastTrip && (
+                <View>
+                  <SectionHeader
+                    title="Último trayecto"
+                    action={{ label: 'Ver historial', onPress: () => router.push('/history') }}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [styles.lastTripRow, pressed && { opacity: 0.7 }]}
+                    onPress={() => router.push(`/trip/${lastTrip.id}`)}
+                  >
+                    <Text style={styles.lastTripDate}>
+                      {new Date(lastTrip.started_at).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    </Text>
+                    <Text style={styles.lastTripDistance}>
+                      {formatDistance(lastTrip.distance_meters ?? 0, units)}
+                    </Text>
+                    {lastTrip.driving_score != null && (
+                      <View style={[styles.scorePill, { borderColor: scoreTone(lastTrip.driving_score) }]}>
+                        <Text style={[styles.scoreText, { color: scoreTone(lastTrip.driving_score) }]}>
+                          {lastTrip.driving_score}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+
+              {streak >= 2 && (
+                <View style={styles.streakRow}>
+                  <Text style={styles.streakEmoji}>🔥</Text>
+                  <Text style={styles.streakText}>
+                    <Text style={styles.streakNumber}>{streak}</Text> días seguidos conduciendo
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -146,11 +244,12 @@ export default function DriveScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl, gap: spacing.lg },
+  content: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.lg },
+  greeting: { ...type.body, color: colors.textMuted, alignSelf: 'flex-start' },
   mapWrap: { width: '100%', borderRadius: radius.lg, overflow: 'hidden', ...shadow.card },
-  dial: { alignItems: 'center', marginTop: spacing.sm },
+  dial: { alignItems: 'center', marginTop: spacing.md },
   speedLabel: { ...type.label, color: colors.textFaint },
-  speed: { color: colors.text, fontSize: 84, fontWeight: '800', letterSpacing: -3, marginTop: 4 },
+  speed: { color: colors.text, fontSize: 88, fontWeight: '800', letterSpacing: -3, marginTop: 4 },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,29 +262,26 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
   liveText: { ...type.label, color: colors.danger },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.lg,
-    width: '100%',
-  },
-  statCard: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, height: 36, backgroundColor: colors.border },
-  statValue: { ...type.heading, color: colors.text },
-  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 2 },
+  statRow: { width: '100%' },
   error: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   button: {
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
     paddingVertical: 20,
     paddingHorizontal: 56,
-    marginTop: spacing.sm,
     ...shadow.glow,
   },
   buttonStop: { backgroundColor: colors.danger, shadowColor: colors.danger },
   buttonText: { color: '#04140D', fontWeight: '800', fontSize: 17, letterSpacing: 0.2 },
+  fullDivider: { width: '100%' },
+  insightsBlock: { width: '100%', gap: spacing.lg },
+  lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
+  lastTripDate: { ...type.caption, color: colors.textMuted, width: 56 },
+  lastTripDistance: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
+  scorePill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  scoreText: { fontSize: 12, fontWeight: '800' },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  streakEmoji: { fontSize: 18 },
+  streakText: { ...type.body, color: colors.textMuted },
+  streakNumber: { color: colors.text, fontWeight: '800' },
 });

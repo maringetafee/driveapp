@@ -21,18 +21,36 @@ export default function SignupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState<'username' | 'email' | 'password' | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const onSubmit = async () => {
     setError(null);
     setLoading(true);
     try {
-      await signUp(email.trim(), password, username.trim());
+      const { needsEmailConfirmation } = await signUp(email.trim(), password, username.trim());
+      if (needsEmailConfirmation) setAwaitingConfirmation(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo crear la cuenta.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (awaitingConfirmation) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.mark}>
+            <Text style={styles.markText}>✓</Text>
+          </View>
+          <Text style={styles.title}>Revisa tu email</Text>
+          <Text style={styles.subtitle}>
+            Te hemos enviado un enlace de confirmación a {email.trim()}. Ábrelo para activar tu cuenta.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

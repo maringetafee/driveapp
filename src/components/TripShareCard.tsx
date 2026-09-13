@@ -1,6 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import type { LineString } from 'geojson';
 import { colors, radius } from '../theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../utils/geo';
+import { staticMapUrl } from '../utils/staticMap';
 import type { Units } from '../types/database';
 
 function scoreTone(score: number | null) {
@@ -17,6 +19,7 @@ interface Props {
   drivingScore: number | null;
   units: Units;
   username: string;
+  route?: LineString | null;
 }
 
 export default function TripShareCard({
@@ -26,7 +29,10 @@ export default function TripShareCard({
   drivingScore,
   units,
   username,
+  route,
 }: Props) {
+  const mapUrl = staticMapUrl(route ?? null, 620, 260);
+
   return (
     <View style={styles.card}>
       <View style={styles.brandRow}>
@@ -38,6 +44,8 @@ export default function TripShareCard({
           <Text style={styles.username}>@{username}</Text>
         </View>
       </View>
+
+      {mapUrl && <Image source={{ uri: mapUrl }} style={styles.map} />}
 
       <View style={styles.scoreBlock}>
         <Text style={[styles.scoreValue, { color: scoreTone(drivingScore) }]}>{drivingScore ?? '—'}</Text>
@@ -85,6 +93,7 @@ const styles = StyleSheet.create({
   brandMarkText: { color: colors.accent, fontWeight: '800', fontSize: 13 },
   brand: { color: colors.text, fontSize: 15, fontWeight: '800' },
   username: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  map: { width: '100%', height: 130, borderRadius: radius.lg, marginBottom: 24, backgroundColor: colors.surface },
   scoreBlock: { alignItems: 'center', marginBottom: 28 },
   scoreValue: { fontSize: 88, fontWeight: '800', letterSpacing: -3 },
   scoreLabel: { color: colors.textMuted, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 },

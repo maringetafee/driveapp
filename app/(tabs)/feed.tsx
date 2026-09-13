@@ -5,26 +5,41 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
-import { formatDistance } from '../../src/utils/geo';
+import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
+import { scoreTone } from '../../src/utils/scoreTone';
 import Avatar from '../../src/components/ui/Avatar';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
+import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
+import StatRow from '../../src/components/ui/StatRow';
+import AchievementBadge, { type AchievementKind } from '../../src/components/ui/AchievementBadge';
+import Divider from '../../src/components/ui/Divider';
+import EmptyState from '../../src/components/ui/EmptyState';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 
-function scoreTone(score: number | null) {
-  if (score == null) return colors.textMuted;
-  if (score >= 85) return colors.accent;
-  if (score >= 60) return colors.gold;
-  return colors.danger;
-}
+const HIGH_SPEED_THRESHOLD_KMH = 120;
 
 interface FeedItem {
   id: string;
   started_at: string;
   distance_meters: number | null;
+  duration_seconds: number | null;
+  max_speed_kmh: number | null;
   driving_score: number | null;
   user_id: string;
   profiles: { username: string } | null;
   trip_likes: { count: number }[];
   trip_comments: { count: number }[];
+}
+
+function achievementsFor(item: FeedItem): { kind: AchievementKind; label: string }[] {
+  const badges: { kind: AchievementKind; label: string }[] = [];
+  if (item.driving_score != null && item.driving_score >= 90) {
+    badges.push({ kind: 'score', label: 'Score excelente' });
+  }
+  if (item.max_speed_kmh != null && item.max_speed_kmh >= HIGH_SPEED_THRESHOLD_KMH) {
+    badges.push({ kind: 'speed', label: 'Alta velocidad' });
+  }
+  return badges;
 }
 
 export default function FeedScreen() {
@@ -51,7 +66,7 @@ export default function FeedScreen() {
         const { data: trips } = await supabase
           .from('trips')
           .select(
-            'id, started_at, distance_meters, driving_score, user_id, profiles!trips_user_id_fkey(username), trip_likes(count), trip_comments(count)'
+            'id, started_at, distance_meters, duration_seconds, max_speed_kmh, driving_score, user_id, profiles!trips_user_id_fkey(username), trip_likes(count), trip_comments(count)'
           )
           .in('user_id', authorIds)
           .eq('is_public', true)
@@ -114,17 +129,29 @@ export default function FeedScreen() {
         contentContainerStyle={styles.list}
         data={items}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={<Text style={styles.header}>Feed</Text>}
+        ListHeaderComponent={
+          <View style={styles.headerRow}>
+            <Text style={styles.header}>Feed</Text>
+            <Pressable style={styles.searchButton} onPress={() => router.push('/search')} hitSlop={8}>
+              <Text style={styles.searchButtonText}>🔍</Text>
+            </Pressable>
+          </View>
+        }
         ListEmptyComponent={
-          !loading ? (
-            <Text style={styles.empty}>
-              Sigue a otros conductores para ver aquí sus trayectos, o completa el tuyo.
-            </Text>
-          ) : null
+          loading ? (
+            <SkeletonList />
+          ) : (
+            <EmptyState
+              emoji="🚗"
+              title="Sin actividad todavía"
+              subtitle="Sigue a otros conductores para ver aquí sus trayectos, o completa el tuyo."
+            />
+          )
         }
         renderItem={({ item, index }) => {
           const liked = likedIds.has(item.id);
           const username = item.profiles?.username ?? '—';
+          const badges = achievementsFor(item);
           return (
             <FadeSlideIn index={index} style={styles.card}>
               <Pressable style={styles.authorRow} onPress={() => router.push(`/u/${username}`)}>
@@ -135,20 +162,30 @@ export default function FeedScreen() {
                     {new Date(item.started_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                   </Text>
                 </View>
-                {item.driving_score != null && (
-                  <View style={[styles.scorePill, { borderColor: scoreTone(item.driving_score) }]}>
-                    <Text style={[styles.scoreText, { color: scoreTone(item.driving_score) }]}>
-                      {item.driving_score}
-                    </Text>
-                  </View>
-                )}
+                {item.driving_score != null && <ScoreDisplay score={item.driving_score} size="pill" />}
               </Pressable>
+
               <Pressable onPress={() => router.push(`/trip/${item.id}`)}>
-                <View style={styles.statsRow}>
-                  <Text style={styles.stat}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
-                </View>
+                <StatRow
+                  boxed={false}
+                  items={[
+                    { label: 'Distancia', value: formatDistance(item.distance_meters ?? 0, units) },
+                    { label: 'Duración', value: formatDuration(item.duration_seconds ?? 0) },
+                    { label: 'Vel. máxima', value: formatSpeed(item.max_speed_kmh ?? 0, units) },
+                  ]}
+                />
               </Pressable>
-              <View style={styles.divider} />
+
+              {badges.length > 0 && (
+                <View style={styles.badgesRow}>
+                  {badges.map((b) => (
+                    <AchievementBadge key={b.kind} kind={b.kind} label={b.label} />
+                  ))}
+                </View>
+              )}
+
+              <Divider />
+
               <View style={styles.actionsRow}>
                 <Pressable style={styles.actionButton} onPress={() => onToggleLike(item.id, liked)}>
                   <Text style={[styles.actionIcon, liked && styles.actionIconActive]}>{liked ? '♥' : '♡'}</Text>
@@ -172,24 +209,31 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: { padding: spacing.lg, gap: spacing.md },
-  header: { ...type.title, color: colors.text, marginBottom: spacing.sm },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 40, lineHeight: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  header: { ...type.title, color: colors.text },
+  searchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchButtonText: { fontSize: 17 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   author: { ...type.subheading, color: colors.text },
-  statsRow: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
-  stat: { ...type.body, color: colors.textMuted },
   date: { ...type.caption, color: colors.textFaint, marginTop: 1 },
-  scorePill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  scoreText: { fontSize: 12, fontWeight: '800' },
-  divider: { height: 1, backgroundColor: colors.border },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: spacing.xl },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionIcon: { color: colors.textMuted, fontSize: 17 },

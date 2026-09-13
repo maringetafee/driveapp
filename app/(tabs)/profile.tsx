@@ -5,17 +5,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { formatDistance } from '../../src/utils/geo';
+import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import type { Vehicle } from '../../src/types/database';
 import { disableAutoTracking, enableAutoTracking, isAutoTrackingEnabled } from '../../src/background/autoTripTask';
 import BadgesRow from '../../src/components/BadgesRow';
+import BestMarks from '../../src/components/BestMarks';
 import Avatar from '../../src/components/ui/Avatar';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
+import StatRow from '../../src/components/ui/StatRow';
+import SectionHeader from '../../src/components/ui/SectionHeader';
 
 export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
+  const units = profile?.units ?? 'kmh';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [stats, setStats] = useState<AggregateTripStats | null>(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   const [autoTracking, setAutoTracking] = useState(false);
   const [autoTrackingError, setAutoTrackingError] = useState<string | null>(null);
   const [addingVehicle, setAddingVehicle] = useState(false);
@@ -58,6 +67,30 @@ export default function ProfileScreen() {
     }, [loadVehicles])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      let cancelled = false;
+
+      fetchAggregateTripStats(session.user.id).then((s) => {
+        if (!cancelled) setStats(s);
+      });
+
+      Promise.all([
+        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', session.user.id),
+        supabase.from('follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', session.user.id),
+      ]).then(([followers, following]) => {
+        if (cancelled) return;
+        setFollowersCount(followers.count ?? 0);
+        setFollowingCount(following.count ?? 0);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [session])
+  );
+
   const onAddVehicle = async () => {
     if (!session || !newMake.trim() || !newModel.trim()) return;
     setSavingVehicle(true);
@@ -84,9 +117,12 @@ export default function ProfileScreen() {
         ListHeaderComponent={
           <View style={styles.headerBlock}>
             <View style={styles.headerRow}>
-              <Avatar username={profile?.username ?? '?'} size={56} />
+              <Avatar username={profile?.username ?? '?'} size={64} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.username}>{profile?.username ?? '—'}</Text>
+                {(profile?.city || profile?.country) && (
+                  <Text style={styles.location}>{[profile?.city, profile?.country].filter(Boolean).join(', ')}</Text>
+                )}
                 {profile?.username && (
                   <Pressable onPress={() => router.push(`/u/${profile.username}`)}>
                     <Text style={styles.viewPublicLink}>Ver perfil público ›</Text>
@@ -94,6 +130,32 @@ export default function ProfileScreen() {
                 )}
               </View>
             </View>
+
+            <View style={styles.followRow}>
+              <Text style={styles.followCount}>
+                <Text style={styles.followNumber}>{followersCount}</Text> seguidores
+              </Text>
+              <Text style={styles.followCount}>
+                <Text style={styles.followNumber}>{followingCount}</Text> siguiendo
+              </Text>
+              {stats && stats.streak >= 2 && (
+                <Text style={styles.followCount}>
+                  🔥 <Text style={styles.followNumber}>{stats.streak}</Text> días seguidos
+                </Text>
+              )}
+            </View>
+
+            {stats && (
+              <StatRow
+                items={[
+                  { label: 'Trayectos', value: String(stats.tripCount) },
+                  { label: 'Km totales', value: formatDistance(stats.totalDistanceMeters, units) },
+                  { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+                ]}
+              />
+            )}
+
+            {stats && <BestMarks stats={stats} units={units} />}
 
             <View style={styles.autoTrackRow}>
               <View style={{ flex: 1 }}>
@@ -114,10 +176,10 @@ export default function ProfileScreen() {
             {session && <BadgesRow userId={session.user.id} />}
 
             <View style={styles.garageHeaderRow}>
-              <Text style={styles.subtitle}>Garaje</Text>
-              <Pressable onPress={() => setAddingVehicle((v) => !v)}>
-                <Text style={styles.viewPublicLink}>{addingVehicle ? 'Cancelar' : '+ Añadir coche'}</Text>
-              </Pressable>
+              <SectionHeader
+                title="Garaje"
+                action={{ label: addingVehicle ? 'Cancelar' : '+ Añadir coche', onPress: () => setAddingVehicle((v) => !v) }}
+              />
             </View>
 
             {addingVehicle && (
@@ -149,7 +211,7 @@ export default function ProfileScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Aún no has añadido coches.</Text>}
         renderItem={({ item }) => (
           <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+            style={({ pressed }) => [styles.card, item.is_default && styles.cardDefault, pressed && styles.cardPressed]}
             onPress={() => router.push(`/vehicle/${item.id}`)}
           >
             <View style={[styles.vehicleDot, item.is_default && styles.vehicleDotActive]} />
@@ -171,12 +233,15 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: { padding: spacing.lg, gap: spacing.md },
-  headerBlock: { marginBottom: spacing.sm, gap: spacing.md },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
+  headerBlock: { marginBottom: spacing.sm, gap: spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   username: { ...type.title, color: colors.text },
-  viewPublicLink: { color: colors.accentAlt, ...type.caption, fontWeight: '700', marginTop: 2 },
-  subtitle: { ...type.subheading, color: colors.text, marginTop: spacing.sm },
-  garageHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  location: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  viewPublicLink: { color: colors.accentAlt, ...type.caption, fontWeight: '700', marginTop: 4 },
+  followRow: { flexDirection: 'row', gap: spacing.lg, flexWrap: 'wrap' },
+  followCount: { color: colors.textMuted, fontSize: 13 },
+  followNumber: { color: colors.text, fontWeight: '700' },
+  garageHeaderRow: {},
   addVehicleForm: { gap: spacing.sm },
   input: {
     backgroundColor: colors.surface,
@@ -212,6 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  cardDefault: { borderColor: colors.accent },
   cardPressed: { backgroundColor: colors.surfaceAlt },
   vehicleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
   vehicleDotActive: { backgroundColor: colors.accent },

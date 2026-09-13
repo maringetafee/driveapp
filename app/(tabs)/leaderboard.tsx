@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
@@ -8,6 +8,7 @@ import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import Avatar from '../../src/components/ui/Avatar';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
+import EmptyState from '../../src/components/ui/EmptyState';
 
 const MEDAL_COLOR: Record<number, string> = { 1: colors.gold, 2: colors.silver, 3: colors.bronze };
 import type { LeaderboardMetric, LeaderboardPeriod, LeaderboardScope } from '../../src/types/database';
@@ -39,6 +40,13 @@ interface Row {
   rank: number;
 }
 
+interface RecordItem {
+  emoji: string;
+  label: string;
+  username: string;
+  value: string;
+}
+
 export default function LeaderboardScreen() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
@@ -50,6 +58,7 @@ export default function LeaderboardScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [records, setRecords] = useState<RecordItem[] | null>(null);
 
   const scopeValue = scope === 'city' ? profile?.city ?? null : scope === 'country' ? profile?.country ?? null : null;
   const scopeUnavailable = (scope === 'city' && !profile?.city) || (scope === 'country' && !profile?.country);
@@ -86,6 +95,51 @@ export default function LeaderboardScreen() {
     }, [session, metric, scope, period, scopeValue, scopeUnavailable])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      let cancelled = false;
+
+      Promise.all([
+        supabase.rpc('compute_leaderboard', {
+          p_metric: 'max_speed',
+          p_scope: 'global',
+          p_scope_value: null,
+          p_period: 'all_time',
+          p_limit: 1,
+        }),
+        supabase.rpc('compute_leaderboard', {
+          p_metric: 'driving_score',
+          p_scope: 'global',
+          p_scope_value: null,
+          p_period: 'all_time',
+          p_limit: 1,
+        }),
+        supabase.rpc('compute_leaderboard', {
+          p_metric: 'total_distance',
+          p_scope: 'global',
+          p_scope_value: null,
+          p_period: 'all_time',
+          p_limit: 1,
+        }),
+      ]).then(([speedRes, scoreRes, distRes]) => {
+        if (cancelled) return;
+        const items: RecordItem[] = [];
+        const s = (speedRes.data as Row[] | null)?.[0];
+        if (s) items.push({ emoji: '🏁', label: 'Vel. máxima', username: s.username, value: formatSpeed(s.value, units) });
+        const sc = (scoreRes.data as Row[] | null)?.[0];
+        if (sc) items.push({ emoji: '🎯', label: 'Mejor score', username: sc.username, value: sc.value.toFixed(0) });
+        const d = (distRes.data as Row[] | null)?.[0];
+        if (d) items.push({ emoji: '🛣️', label: 'Mayor distancia', username: d.username, value: formatDistance(d.value, units) });
+        setRecords(items);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [session, units])
+  );
+
   const formatValue = (row: Row) => {
     if (metric === 'max_speed') return formatSpeed(row.value, units);
     if (metric === 'total_distance') return formatDistance(row.value, units);
@@ -94,6 +148,8 @@ export default function LeaderboardScreen() {
   };
 
   const myRankIndex = rows.findIndex((r) => r.user_id === session?.user.id);
+  const top3 = rows.filter((r) => r.rank <= 3);
+  const restRows = rows.filter((r) => r.rank > 3).slice(0, 27);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -103,24 +159,43 @@ export default function LeaderboardScreen() {
         <FilterRow options={PERIODS} value={period} onChange={setPeriod} />
       </View>
 
+      {records && records.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recordsRow}>
+          {records.map((r) => (
+            <Pressable key={r.label} style={styles.recordCard} onPress={() => router.push(`/u/${r.username}`)}>
+              <Text style={styles.recordEmoji}>{r.emoji}</Text>
+              <Text style={styles.recordValue}>{r.value}</Text>
+              <Text style={styles.recordLabel}>{r.label}</Text>
+              <Text style={styles.recordUsername} numberOfLines={1}>
+                @{r.username}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
       {scopeUnavailable ? (
         <View style={styles.centered}>
-          <Text style={styles.empty}>
-            Añade tu {scope === 'city' ? 'ciudad' : 'país'} en el perfil para ver este ranking.
-          </Text>
+          <EmptyState
+            emoji="📍"
+            title="Falta tu ubicación"
+            subtitle={`Añade tu ${scope === 'city' ? 'ciudad' : 'país'} en el perfil para ver este ranking.`}
+          />
         </View>
       ) : loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.text} />
         </View>
+      ) : rows.length === 0 ? (
+        <View style={styles.centered}>
+          <EmptyState emoji="🏆" title="Sin datos todavía" subtitle="Nadie ha registrado trayectos con este filtro aún." />
+        </View>
       ) : (
-        <FlatList
-          contentContainerStyle={styles.list}
-          data={rows.slice(0, 30)}
-          keyExtractor={(item) => item.user_id}
-          ListEmptyComponent={<Text style={styles.empty}>Sin datos todavía para este filtro.</Text>}
-          renderItem={({ item, index }) => (
-            <FadeSlideIn index={index}>
+        <ScrollView contentContainerStyle={styles.list}>
+          {top3.length > 0 && <Podium rows={top3} formatValue={formatValue} />}
+
+          {restRows.map((item, index) => (
+            <FadeSlideIn key={item.user_id} index={index}>
               <Pressable
                 style={({ pressed }) => [
                   styles.row,
@@ -129,35 +204,72 @@ export default function LeaderboardScreen() {
                 ]}
                 onPress={() => router.push(`/u/${item.username}`)}
               >
-                {MEDAL_COLOR[item.rank] ? (
-                  <View style={[styles.medal, { borderColor: MEDAL_COLOR[item.rank] }]}>
-                    <Text style={[styles.medalText, { color: MEDAL_COLOR[item.rank] }]}>{item.rank}</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.rank}>#{item.rank}</Text>
-                )}
+                <Text style={styles.rank}>#{item.rank}</Text>
                 <Avatar username={item.username} size={32} />
                 <Text style={styles.username}>@{item.username}</Text>
                 <Text style={styles.value}>{formatValue(item)}</Text>
               </Pressable>
             </FadeSlideIn>
+          ))}
+
+          {myRankIndex >= 0 && rows[myRankIndex].rank > 30 && (
+            <View style={[styles.row, styles.rowMe, styles.rowMePinned]}>
+              <Text style={styles.rank}>#{rows[myRankIndex].rank}</Text>
+              <Avatar username={rows[myRankIndex].username} size={32} />
+              <Text style={styles.username}>@{rows[myRankIndex].username} (tú)</Text>
+              <Text style={styles.value}>{formatValue(rows[myRankIndex])}</Text>
+            </View>
           )}
-          ListFooterComponent={
-            myRankIndex >= 30 ? (
-              <View style={[styles.row, styles.rowMe, styles.rowMePinned]}>
-                <Text style={styles.rank}>#{rows[myRankIndex].rank}</Text>
-                <Avatar username={rows[myRankIndex].username} size={32} />
-                <Text style={styles.username}>@{rows[myRankIndex].username} (tú)</Text>
-                <Text style={styles.value}>{formatValue(rows[myRankIndex])}</Text>
-              </View>
-            ) : null
-          }
-          ListFooterComponentStyle={{ marginTop: myRankIndex >= 30 ? 12 : 0 }}
-        />
+        </ScrollView>
       )}
 
       {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
     </SafeAreaView>
+  );
+}
+
+function Podium({ rows, formatValue }: { rows: Row[]; formatValue: (r: Row) => string }) {
+  const first = rows.find((r) => r.rank === 1);
+  const second = rows.find((r) => r.rank === 2);
+  const third = rows.find((r) => r.rank === 3);
+
+  return (
+    <View style={styles.podiumRow}>
+      <PodiumSlot row={second} color={colors.silver} avatarSize={40} formatValue={formatValue} />
+      <PodiumSlot row={first} color={colors.gold} avatarSize={56} emphasis formatValue={formatValue} />
+      <PodiumSlot row={third} color={colors.bronze} avatarSize={40} formatValue={formatValue} />
+    </View>
+  );
+}
+
+function PodiumSlot({
+  row,
+  color,
+  avatarSize,
+  emphasis,
+  formatValue,
+}: {
+  row?: Row;
+  color: string;
+  avatarSize: number;
+  emphasis?: boolean;
+  formatValue: (r: Row) => string;
+}) {
+  if (!row) return <View style={styles.podiumSlot} />;
+  return (
+    <Pressable
+      style={[styles.podiumSlot, emphasis && styles.podiumSlotEmphasis]}
+      onPress={() => router.push(`/u/${row.username}`)}
+    >
+      <View style={[styles.podiumRankBadge, { backgroundColor: color }]}>
+        <Text style={styles.podiumRankText}>{row.rank}</Text>
+      </View>
+      <Avatar username={row.username} size={avatarSize} />
+      <Text style={styles.podiumUsername} numberOfLines={1}>
+        @{row.username}
+      </Text>
+      <Text style={[styles.podiumValue, { color }]}>{formatValue(row)}</Text>
+    </Pressable>
   );
 }
 
@@ -199,8 +311,35 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   pillText: { color: colors.textMuted, ...type.caption },
   pillTextActive: { color: colors.accent },
+  recordsRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
+  recordCard: {
+    width: 128,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  recordEmoji: { fontSize: 18, marginBottom: 4 },
+  recordValue: { ...type.subheading, color: colors.text },
+  recordLabel: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
+  recordUsername: { ...type.label, color: colors.accent, marginTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   list: { padding: spacing.lg, gap: spacing.sm },
+  podiumRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  podiumSlot: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: spacing.md },
+  podiumSlotEmphasis: { paddingBottom: spacing.xl },
+  podiumRankBadge: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  podiumRankText: { fontSize: 11, fontWeight: '800', color: '#04140D' },
+  podiumUsername: { ...type.caption, color: colors.text, fontWeight: '700', maxWidth: 92 },
+  podiumValue: { fontSize: 15, fontWeight: '800' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,19 +352,9 @@ const styles = StyleSheet.create({
   },
   rowPressed: { backgroundColor: colors.surfaceAlt },
   rowMe: { borderColor: colors.accent, borderWidth: 1.5 },
-  rowMePinned: { marginHorizontal: spacing.lg },
+  rowMePinned: { marginTop: spacing.sm },
   rank: { color: colors.textMuted, fontWeight: '700', width: 28, textAlign: 'center' },
-  medal: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  medalText: { fontWeight: '800', fontSize: 13 },
   username: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
   value: { color: colors.accent, fontWeight: '800', fontSize: 15 },
-  empty: { color: colors.textMuted, textAlign: 'center' },
   error: { color: colors.danger, textAlign: 'center', paddingBottom: 12, fontSize: 12 },
 });

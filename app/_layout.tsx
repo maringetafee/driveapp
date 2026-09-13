@@ -48,6 +48,7 @@ export default function RootLayout() {
             options={{ headerShown: true, presentation: 'modal', title: 'Resumen del trayecto' }}
           />
           <Stack.Screen name="u/[username]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="search" options={{ headerShown: true, title: 'Buscar usuarios' }} />
           <Stack.Screen name="vehicle/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="mod-car/[vehicleId]" options={{ headerShown: true, title: 'Mod Car' }} />
         </Stack.Protected>

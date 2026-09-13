@@ -6,15 +6,14 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
+import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import BadgesRow from '../../src/components/BadgesRow';
+import BestMarks from '../../src/components/BestMarks';
 import Avatar from '../../src/components/ui/Avatar';
+import StatRow from '../../src/components/ui/StatRow';
+import SectionHeader from '../../src/components/ui/SectionHeader';
+import EmptyState from '../../src/components/ui/EmptyState';
 import type { Profile, Vehicle } from '../../src/types/database';
-
-interface AggregateStats {
-  tripCount: number;
-  totalDistanceMeters: number;
-  avgDrivingScore: number | null;
-}
 
 export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -23,7 +22,7 @@ export default function PublicProfileScreen() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [stats, setStats] = useState<AggregateStats>({ tripCount: 0, totalDistanceMeters: 0, avgDrivingScore: null });
+  const [stats, setStats] = useState<AggregateTripStats | null>(null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -48,12 +47,9 @@ export default function PublicProfileScreen() {
         }
         setProfile(profileData);
 
-        const [{ data: vehicleData }, { data: tripsData }, followers, following] = await Promise.all([
+        const [{ data: vehicleData }, aggregateStats, followers, following] = await Promise.all([
           supabase.from('vehicles').select('*').eq('user_id', profileData.id),
-          supabase
-            .from('trips')
-            .select('distance_meters, driving_score')
-            .eq('user_id', profileData.id),
+          fetchAggregateTripStats(profileData.id),
           supabase
             .from('follows')
             .select('follower_id', { count: 'exact', head: true })
@@ -69,16 +65,7 @@ export default function PublicProfileScreen() {
         setVehicles(vehicleData ?? []);
         setFollowersCount(followers.count ?? 0);
         setFollowingCount(following.count ?? 0);
-
-        const trips = tripsData ?? [];
-        const scored = trips.filter((t) => t.driving_score != null);
-        setStats({
-          tripCount: trips.length,
-          totalDistanceMeters: trips.reduce((sum, t) => sum + (t.distance_meters ?? 0), 0),
-          avgDrivingScore: scored.length
-            ? Math.round(scored.reduce((sum, t) => sum + (t.driving_score ?? 0), 0) / scored.length)
-            : null,
-        });
+        setStats(aggregateStats);
 
         if (myUserId && myUserId !== profileData.id) {
           const { data: followRow } = await supabase
@@ -129,7 +116,7 @@ export default function PublicProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.title}>No se encontró a @{username}.</Text>
+          <EmptyState emoji="🔍" title={`No se encontró a @${username}`} />
         </View>
       </SafeAreaView>
     );
@@ -183,15 +170,21 @@ export default function PublicProfileScreen() {
               </Pressable>
             )}
 
-            <View style={styles.statsGrid}>
-              <Stat value={String(stats.tripCount)} label="Trayectos" />
-              <Stat value={formatDistance(stats.totalDistanceMeters, profile.units)} label="Distancia total" />
-              <Stat value={stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—'} label="Score medio" />
-            </View>
+            {stats && (
+              <StatRow
+                items={[
+                  { label: 'Trayectos', value: String(stats.tripCount) },
+                  { label: 'Distancia total', value: formatDistance(stats.totalDistanceMeters, profile.units) },
+                  { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+                ]}
+              />
+            )}
+
+            {stats && <BestMarks stats={stats} units={profile.units} />}
 
             <BadgesRow userId={profile.id} />
 
-            <Text style={styles.subtitle}>Garaje</Text>
+            <SectionHeader title="Garaje" />
           </View>
         }
         ListEmptyComponent={<Text style={styles.empty}>Sin coches todavía.</Text>}
@@ -208,21 +201,11 @@ export default function PublicProfileScreen() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.text, fontSize: 18, fontWeight: '700' },
   list: { padding: spacing.lg, gap: spacing.md },
-  header: { marginBottom: spacing.sm, gap: spacing.md },
+  header: { marginBottom: spacing.sm, gap: spacing.lg },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   username: { ...type.title, color: colors.text },
   location: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
@@ -239,19 +222,6 @@ const styles = StyleSheet.create({
   followButtonActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1.5, borderColor: colors.accent },
   followButtonText: { color: '#04140D', fontWeight: '800' },
   followButtonTextActive: { color: colors.accent },
-  statsGrid: { flexDirection: 'row', gap: spacing.sm },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  statValue: { ...type.heading, color: colors.text },
-  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
-  subtitle: { ...type.subheading, color: colors.text },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 12 },
   card: {
     backgroundColor: colors.surface,

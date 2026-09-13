@@ -8,7 +8,7 @@ interface AuthState {
   profile: Profile | null;
   initializing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   completeOnboarding: (updates: { units: Profile['units']; country?: string; city?: string }) => Promise<void>;
@@ -34,12 +34,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUp: async (email, password, username) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { username } },
     });
     if (error) throw error;
+    return { needsEmailConfirmation: !data.session };
   },
 
   signOut: async () => {

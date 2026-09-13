@@ -8,6 +8,7 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
+import StatRow from '../../src/components/ui/StatRow';
 import type { Vehicle } from '../../src/types/database';
 
 interface VehicleStats {
@@ -109,14 +110,20 @@ export default function VehicleDetailScreen() {
           {vehicle.make} {vehicle.model}
           {vehicle.year ? ` · ${vehicle.year}` : ''}
         </Text>
-        {vehicle.is_default && <Text style={styles.defaultBadge}>Vehículo principal</Text>}
+        {vehicle.is_default && (
+          <View style={styles.defaultBadge}>
+            <Text style={styles.defaultBadgeText}>PRINCIPAL</Text>
+          </View>
+        )}
 
-        <View style={styles.grid}>
-          <Stat label="Trayectos" value={String(stats.tripCount)} />
-          <Stat label="Distancia total" value={formatDistance(stats.totalDistanceMeters, units)} />
-          <Stat label="Vel. máxima" value={formatSpeed(stats.maxSpeedKmh, units)} />
-          <Stat label="Score medio" value={stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—'} />
-        </View>
+        <StatRow
+          items={[
+            { label: 'Trayectos', value: String(stats.tripCount) },
+            { label: 'Distancia total', value: formatDistance(stats.totalDistanceMeters, units) },
+            { label: 'Vel. máxima', value: formatSpeed(stats.maxSpeedKmh, units) },
+            { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+          ]}
+        />
 
         {isMine && (
           <View style={styles.actions}>
@@ -136,15 +143,6 @@ export default function VehicleDetailScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -153,17 +151,14 @@ const styles = StyleSheet.create({
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   imagePlaceholderText: { color: colors.textMuted },
   title: { ...type.heading, color: colors.text, fontSize: 24 },
-  defaultBadge: { color: colors.accent, fontSize: 13, fontWeight: '700', marginTop: -12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  statCard: {
-    flexBasis: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
+  defaultBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    marginTop: -spacing.xs,
   },
-  statValue: { ...type.heading, color: colors.text },
-  statLabel: { ...type.caption, color: colors.textMuted, marginTop: 4 },
+  defaultBadgeText: { ...type.label, color: colors.accent },
   actions: { gap: spacing.sm, marginTop: spacing.xs },
 });
