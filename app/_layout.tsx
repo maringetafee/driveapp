@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuthStore } from '../src/state/authStore';
 import { initMapbox } from '../src/lib/mapbox';
+import { colors, type } from '../src/theme/colors';
 import '../src/background/autoTripTask';
 
 initMapbox();
@@ -23,7 +24,15 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { ...type.subheading, color: colors.text },
+          headerShadowVisible: false,
+        }}
+      >
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
