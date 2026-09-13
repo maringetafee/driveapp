@@ -1,8 +1,19 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { colors } from '../../src/theme/colors';
 
 export default function TabsLayout() {
   return (
-    <NativeTabs>
+    <NativeTabs
+      backgroundColor={colors.surface}
+      shadowColor={colors.border}
+      indicatorColor={colors.accentSoft}
+      rippleColor={colors.accentSoft}
+      iconColor={{ default: colors.textFaint, selected: colors.accent }}
+      labelStyle={{
+        default: { color: colors.textFaint, fontSize: 11, fontWeight: '600' },
+        selected: { color: colors.accent, fontWeight: '700' },
+      }}
+    >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Conducir</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="speedometer" md="speed" />
