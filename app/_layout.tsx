@@ -1,15 +1,38 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { useAuthStore } from '../src/state/authStore';
+import { supabase } from '../src/lib/supabase';
 import { initMapbox } from '../src/lib/mapbox';
 import { colors, type } from '../src/theme/colors';
 import '../src/background/autoTripTask';
 
 initMapbox();
 
+// El enlace de confirmación de email (y el de recuperación de contraseña)
+// vuelven a la app con ?code=... (flujo PKCE) en vez de abrir un navegador;
+// hay que canjearlo aquí porque llega antes de que exista ninguna pantalla.
+function useAuthDeepLinks() {
+  useEffect(() => {
+    const exchangeIfNeeded = (url: string | null) => {
+      if (url?.includes('code=')) {
+        supabase.auth.exchangeCodeForSession(url).catch((e) => {
+          console.warn('No se pudo confirmar el enlace de auth:', e.message);
+        });
+      }
+    };
+
+    Linking.getInitialURL().then(exchangeIfNeeded);
+    const subscription = Linking.addEventListener('url', ({ url }) => exchangeIfNeeded(url));
+    return () => subscription.remove();
+  }, []);
+}
+
 export default function RootLayout() {
   const { session, profile, initializing } = useAuthStore();
+  useAuthDeepLinks();
 
   if (initializing) {
     return (

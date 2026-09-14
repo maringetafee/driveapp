@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -131,6 +132,20 @@ export default function TripSummaryScreen() {
     }
   };
 
+  const onDelete = () => {
+    Alert.alert('Eliminar trayecto', 'Esta acción no se puede deshacer.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('trips').delete().eq('id', id);
+          router.back();
+        },
+      },
+    ]);
+  };
+
   const onShare = async () => {
     if (!shareCardRef.current?.capture) return;
     setSharing(true);
@@ -221,6 +236,12 @@ export default function TripSummaryScreen() {
               style={{ flex: 1 }}
             />
           </View>
+
+          {isOwnTrip && (
+            <Pressable onPress={onDelete} hitSlop={8}>
+              <Text style={styles.deleteLink}>Eliminar trayecto</Text>
+            </Pressable>
+          )}
 
           <View style={styles.commentsSection}>
             <SectionHeader title="Comentarios" />
@@ -321,5 +342,6 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   commentSend: { color: colors.accentAlt, fontWeight: '800' },
+  deleteLink: { color: colors.danger, fontWeight: '700', textAlign: 'center' },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },
 });

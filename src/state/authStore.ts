@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types/database';
 
@@ -37,7 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: { data: { username }, emailRedirectTo: Linking.createURL('/') },
     });
     if (error) throw error;
     return { needsEmailConfirmation: !data.session };
