@@ -3,8 +3,12 @@
 -- nuevas insignias. No toca nada de la lógica de tracking (trips/trip_metrics
 -- se insertan igual que siempre desde la app).
 
+-- Este archivo se puede volver a ejecutar entero sin dar error, aunque una
+-- ejecución anterior se haya cortado a mitad (todas las creaciones llevan
+-- guardas if not exists / drop-if-exists-antes-de-create).
+
 -- ── Notificaciones ──────────────────────────────────────────────────────
-create table public.notifications (
+create table if not exists public.notifications (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references public.profiles (id) on delete cascade, -- destinatario
   actor_id uuid references public.profiles (id) on delete cascade,
@@ -15,21 +19,24 @@ create table public.notifications (
   created_at timestamptz not null default now()
 );
 
-create index notifications_user_idx on public.notifications (user_id, created_at desc);
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
 
 alter table public.notifications enable row level security;
 
+drop policy if exists "Cada usuario ve solo sus notificaciones" on public.notifications;
 create policy "Cada usuario ve solo sus notificaciones"
   on public.notifications for select
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Cada usuario marca como leídas solo las suyas" on public.notifications;
 create policy "Cada usuario marca como leídas solo las suyas"
   on public.notifications for update
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Cada usuario borra solo sus notificaciones" on public.notifications;
 create policy "Cada usuario borra solo sus notificaciones"
   on public.notifications for delete
   to authenticated
@@ -141,12 +148,15 @@ create trigger on_badge_notify
   for each row execute procedure public.notify_on_badge();
 
 -- ── Perfiles privados + solicitudes de seguimiento ─────────────────────
-alter table public.profiles add column is_private boolean not null default false;
+alter table public.profiles add column if not exists is_private boolean not null default false;
+
+alter table public.follows add column if not exists status text not null default 'accepted' check (status in ('pending', 'accepted'));
 
 -- Antes, cualquier trayecto/coche público era visible por todos; ahora, si
 -- el dueño tiene el perfil en privado, solo lo ven sus seguidores aceptados
 -- (o él mismo). No afecta a cuentas públicas (el caso por defecto).
 drop policy if exists "Los trayectos públicos son visibles por todos los autenticados" on public.trips;
+drop policy if exists "Trayectos visibles según privacidad del perfil" on public.trips;
 create policy "Trayectos visibles según privacidad del perfil"
   on public.trips for select
   to authenticated
@@ -165,6 +175,7 @@ create policy "Trayectos visibles según privacidad del perfil"
   );
 
 drop policy if exists "Los vehículos son visibles por todos los autenticados" on public.vehicles;
+drop policy if exists "Vehículos visibles según privacidad del perfil" on public.vehicles;
 create policy "Vehículos visibles según privacidad del perfil"
   on public.vehicles for select
   to authenticated
@@ -179,30 +190,31 @@ create policy "Vehículos visibles según privacidad del perfil"
     )
   );
 
-alter table public.follows add column status text not null default 'accepted' check (status in ('pending', 'accepted'));
-
 drop policy if exists "Follows visibles por todos los autenticados" on public.follows;
+drop policy if exists "Follows aceptados son públicos; las solicitudes solo las ven sus dos partes" on public.follows;
 create policy "Follows aceptados son públicos; las solicitudes solo las ven sus dos partes"
   on public.follows for select
   to authenticated
   using (status = 'accepted' or follower_id = auth.uid() or followed_id = auth.uid());
 
+drop policy if exists "El destinatario acepta o gestiona la solicitud" on public.follows;
 create policy "El destinatario acepta o gestiona la solicitud"
   on public.follows for update
   to authenticated
   using (auth.uid() = followed_id)
   with check (auth.uid() = followed_id);
 
+drop policy if exists "El destinatario puede rechazar/eliminar una solicitud" on public.follows;
 create policy "El destinatario puede rechazar/eliminar una solicitud"
   on public.follows for delete
   to authenticated
   using (auth.uid() = followed_id);
 
 -- ── Tags de trayecto (se editan después, no durante el tracking) ───────
-alter table public.trips add column tag text check (tag in ('commute', 'road_trip', 'night', 'other'));
+alter table public.trips add column if not exists tag text check (tag in ('commute', 'road_trip', 'night', 'other'));
 
 -- ── Grupos privados (crews) ─────────────────────────────────────────────
-create table public.groups (
+create table if not exists public.groups (
   id uuid primary key default uuid_generate_v4(),
   name text not null check (char_length(name) between 1 and 60),
   owner_id uuid not null references public.profiles (id) on delete cascade,
@@ -210,7 +222,7 @@ create table public.groups (
   created_at timestamptz not null default now()
 );
 
-create table public.group_members (
+create table if not exists public.group_members (
   group_id uuid not null references public.groups (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   joined_at timestamptz not null default now(),
@@ -220,31 +232,37 @@ create table public.group_members (
 alter table public.groups enable row level security;
 alter table public.group_members enable row level security;
 
+drop policy if exists "Solo los miembros ven el grupo" on public.groups;
 create policy "Solo los miembros ven el grupo"
   on public.groups for select
   to authenticated
   using (exists (select 1 from public.group_members gm where gm.group_id = id and gm.user_id = auth.uid()));
 
+drop policy if exists "Cualquiera crea un grupo del que es dueño" on public.groups;
 create policy "Cualquiera crea un grupo del que es dueño"
   on public.groups for insert
   to authenticated
   with check (auth.uid() = owner_id);
 
+drop policy if exists "Solo el dueño borra el grupo" on public.groups;
 create policy "Solo el dueño borra el grupo"
   on public.groups for delete
   to authenticated
   using (auth.uid() = owner_id);
 
+drop policy if exists "Solo los miembros ven la lista de miembros" on public.group_members;
 create policy "Solo los miembros ven la lista de miembros"
   on public.group_members for select
   to authenticated
   using (exists (select 1 from public.group_members gm2 where gm2.group_id = group_id and gm2.user_id = auth.uid()));
 
+drop policy if exists "Cada usuario se añade solo a sí mismo como miembro" on public.group_members;
 create policy "Cada usuario se añade solo a sí mismo como miembro"
   on public.group_members for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Cada usuario sale del grupo por su cuenta" on public.group_members;
 create policy "Cada usuario sale del grupo por su cuenta"
   on public.group_members for delete
   to authenticated
