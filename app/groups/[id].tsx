@@ -35,6 +35,7 @@ export default function GroupDetailScreen() {
   const session = useAuthStore((s) => s.session);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const [group, setGroup] = useState<Group | null>(null);
+  const [groupLoading, setGroupLoading] = useState(true);
   const [memberCount, setMemberCount] = useState(0);
   const [metric, setMetric] = useState<LeaderboardMetric>('driving_score');
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
@@ -51,7 +52,10 @@ export default function GroupDetailScreen() {
         .eq('id', id)
         .single()
         .then(({ data }) => {
-          if (!cancelled) setGroup(data);
+          if (!cancelled) {
+            setGroup(data);
+            setGroupLoading(false);
+          }
         });
       supabase
         .from('group_members')
@@ -130,7 +134,11 @@ export default function GroupDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.text} />
+          {groupLoading ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <EmptyState emoji="🔍" title="Grupo no encontrado" subtitle="Puede que ya no exista o que no tengas acceso." />
+          )}
         </View>
       </SafeAreaView>
     );
