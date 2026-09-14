@@ -6,10 +6,12 @@ interface Props {
   label: string;
   value: number;
   tone: string;
+  /** Appended after the number, e.g. "%" when value is a percentage rather than a 0-100 score. */
+  suffix?: string;
 }
 
 /** value: 0-100 */
-export default function ProgressBar({ label, value, tone }: Props) {
+export default function ProgressBar({ label, value, tone, suffix = '' }: Props) {
   const width = useRef(new Animated.Value(0)).current;
   const clamped = Math.max(0, Math.min(100, value));
 
@@ -21,7 +23,10 @@ export default function ProgressBar({ label, value, tone }: Props) {
     <View style={styles.wrap}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={[styles.value, { color: tone }]}>{Math.round(clamped)}</Text>
+        <Text style={[styles.value, { color: tone }]}>
+          {Math.round(clamped)}
+          {suffix}
+        </Text>
       </View>
       <View style={styles.track}>
         <Animated.View

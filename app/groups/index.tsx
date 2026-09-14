@@ -10,13 +10,6 @@ import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import type { Group } from '../../src/types/database';
 
-function randomInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
-
 export default function GroupsScreen() {
   const session = useAuthStore((s) => s.session);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -53,21 +46,15 @@ export default function GroupsScreen() {
     if (!session || !newName.trim()) return;
     setBusy(true);
     setErrorMsg(null);
-    const { data, error } = await supabase
-      .from('groups')
-      .insert({ name: newName.trim(), owner_id: session.user.id, invite_code: randomInviteCode() })
-      .select('id')
-      .single();
+    const { data, error } = await supabase.rpc('create_group', { p_name: newName.trim() });
+    setBusy(false);
     if (error || !data) {
       setErrorMsg('No se pudo crear el grupo. Inténtalo de nuevo.');
-      setBusy(false);
       return;
     }
-    await supabase.from('group_members').insert({ group_id: data.id, user_id: session.user.id });
-    setBusy(false);
     setNewName('');
     setCreating(false);
-    router.push(`/groups/${data.id}`);
+    router.push(`/groups/${data}`);
   };
 
   const onJoin = async () => {

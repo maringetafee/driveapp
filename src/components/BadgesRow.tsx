@@ -115,6 +115,7 @@ export default function BadgesRow({ userId, stats }: { userId: string; stats?: A
               label={`${BADGE_EMOJI[badge.code] ?? DEFAULT_EMOJI} ${badge.name}`}
               value={progress ?? 0}
               tone={colors.textMuted}
+              suffix="%"
             />
           ))}
         </View>
