@@ -3,20 +3,32 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { colors, radius, spacing } from '../../theme/colors';
 
 function Pulse({ style }: { style: object }) {
-  const opacity = useRef(new Animated.Value(0.4)).current;
+  const sweep = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.9, duration: 600, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 600, useNativeDriver: true }),
-      ])
+      Animated.timing(sweep, { toValue: 1, duration: 1100, useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
-  }, [opacity]);
+  }, [sweep]);
 
-  return <Animated.View style={[style, { opacity }]} />;
+  return (
+    <View style={[style, styles.base]}>
+      <Animated.View
+        style={[
+          styles.sweep,
+          {
+            transform: [
+              {
+                translateX: sweep.interpolate({ inputRange: [-1, 1], outputRange: [-120, 120] }),
+              },
+            ],
+          },
+        ]}
+      />
+    </View>
+  );
 }
 
 /** Skeleton placeholder shaped like a feed/history card, shown while data loads. */
@@ -55,8 +67,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt },
-  lineShort: { width: '40%', height: 12, borderRadius: 4, backgroundColor: colors.surfaceAlt },
-  lineTiny: { width: '25%', height: 10, borderRadius: 4, backgroundColor: colors.surfaceAlt },
-  lineWide: { width: '60%', height: 14, borderRadius: 4, backgroundColor: colors.surfaceAlt },
+  base: { backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  sweep: {
+    width: 60,
+    height: '100%',
+    backgroundColor: 'rgba(247, 248, 252, 0.08)',
+  },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  lineShort: { width: '40%', height: 12, borderRadius: 4 },
+  lineTiny: { width: '25%', height: 10, borderRadius: 4 },
+  lineWide: { width: '60%', height: 14, borderRadius: 4 },
 });

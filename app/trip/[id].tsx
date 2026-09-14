@@ -30,7 +30,14 @@ import StatRow from '../../src/components/ui/StatRow';
 import ProgressBar from '../../src/components/ui/ProgressBar';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import Divider from '../../src/components/ui/Divider';
-import type { Profile, Trip, TripMetrics } from '../../src/types/database';
+import type { Profile, Trip, TripMetrics, TripTag } from '../../src/types/database';
+
+const TAG_OPTIONS: { key: TripTag; label: string }[] = [
+  { key: 'commute', label: '🏢 Commute' },
+  { key: 'road_trip', label: '🛣️ Viaje largo' },
+  { key: 'night', label: '🌙 Nocturno' },
+  { key: 'other', label: '📍 Otro' },
+];
 
 interface CommentRow {
   id: string;
@@ -41,7 +48,7 @@ interface CommentRow {
 }
 
 export default function TripSummaryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, justFinished } = useLocalSearchParams<{ id: string; justFinished?: string }>();
   const myUserId = useAuthStore((s) => s.session?.user.id);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -132,6 +139,13 @@ export default function TripSummaryScreen() {
     }
   };
 
+  const onSetTag = async (tag: TripTag) => {
+    if (!trip) return;
+    const nextTag = trip.tag === tag ? null : tag;
+    setTrip({ ...trip, tag: nextTag });
+    await supabase.from('trips').update({ tag: nextTag }).eq('id', trip.id);
+  };
+
   const onDelete = () => {
     Alert.alert('Eliminar trayecto', 'Esta acción no se puede deshacer.', [
       { text: 'Cancelar', style: 'cancel' },
@@ -190,7 +204,9 @@ export default function TripSummaryScreen() {
 
           <TripRouteMap route={trip.route_geojson} height={240} />
 
-          {trip.driving_score != null && <ScoreDisplay score={trip.driving_score} size="hero" style={styles.score} />}
+          {trip.driving_score != null && (
+            <ScoreDisplay score={trip.driving_score} size="hero" style={styles.score} reveal={!!justFinished} />
+          )}
 
           <StatRow
             items={[
@@ -200,6 +216,22 @@ export default function TripSummaryScreen() {
               { label: 'Vel. máxima', value: formatSpeed(trip.max_speed_kmh ?? 0, units) },
             ]}
           />
+
+          {isOwnTrip && (
+            <View style={styles.tagRow}>
+              {TAG_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  style={[styles.tagPill, trip.tag === opt.key && styles.tagPillActive]}
+                  onPress={() => onSetTag(opt.key)}
+                >
+                  <Text style={[styles.tagPillText, trip.tag === opt.key && styles.tagPillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {tripMetrics && (
             <View style={styles.subScores}>
@@ -305,6 +337,17 @@ const styles = StyleSheet.create({
   title: { ...type.heading, color: colors.text },
   score: { marginVertical: spacing.xs },
   subScores: { gap: spacing.md },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tagPill: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+  },
+  tagPillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  tagPillText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  tagPillTextActive: { color: colors.accent },
   socialRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   likeButton: {
     flexDirection: 'row',

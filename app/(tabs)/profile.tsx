@@ -11,6 +11,7 @@ import type { Vehicle } from '../../src/types/database';
 import { disableAutoTracking, enableAutoTracking, isAutoTrackingEnabled } from '../../src/background/autoTripTask';
 import BadgesRow from '../../src/components/BadgesRow';
 import BestMarks from '../../src/components/BestMarks';
+import ScoreTrendChart from '../../src/components/ScoreTrendChart';
 import Avatar from '../../src/components/ui/Avatar';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
@@ -20,13 +21,16 @@ export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
+  const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const units = profile?.units ?? 'kmh';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [stats, setStats] = useState<AggregateTripStats | null>(null);
+  const [scoreTrend, setScoreTrend] = useState<number[]>([]);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [autoTracking, setAutoTracking] = useState(false);
   const [autoTrackingError, setAutoTrackingError] = useState<string | null>(null);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [newMake, setNewMake] = useState('');
   const [newModel, setNewModel] = useState('');
@@ -76,6 +80,17 @@ export default function ProfileScreen() {
         if (!cancelled) setStats(s);
       });
 
+      supabase
+        .from('trips')
+        .select('driving_score')
+        .eq('user_id', session.user.id)
+        .not('driving_score', 'is', null)
+        .order('started_at', { ascending: false })
+        .limit(10)
+        .then(({ data }) => {
+          if (!cancelled) setScoreTrend((data ?? []).map((t) => t.driving_score as number).reverse());
+        });
+
       Promise.all([
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', session.user.id),
         supabase.from('follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', session.user.id),
@@ -90,6 +105,14 @@ export default function ProfileScreen() {
       };
     }, [session])
   );
+
+  const onTogglePrivacy = async (value: boolean) => {
+    if (!session) return;
+    setPrivacyBusy(true);
+    await supabase.from('profiles').update({ is_private: value }).eq('id', session.user.id);
+    await refreshProfile();
+    setPrivacyBusy(false);
+  };
 
   const onAddVehicle = async () => {
     if (!session || !newMake.trim() || !newModel.trim()) return;
@@ -157,6 +180,8 @@ export default function ProfileScreen() {
 
             {stats && <BestMarks stats={stats} units={units} />}
 
+            <ScoreTrendChart scores={scoreTrend} />
+
             <View style={styles.autoTrackRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.autoTrackTitle}>Detección automática</Text>
@@ -173,7 +198,23 @@ export default function ProfileScreen() {
             </View>
             {autoTrackingError && <Text style={styles.error}>{autoTrackingError}</Text>}
 
-            {session && <BadgesRow userId={session.user.id} />}
+            <View style={styles.autoTrackRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.autoTrackTitle}>Cuenta privada</Text>
+                <Text style={styles.autoTrackSubtitle}>
+                  Solo tus seguidores aceptados verán tus trayectos, coches y estadísticas.
+                </Text>
+              </View>
+              <Switch
+                value={profile?.is_private ?? false}
+                onValueChange={onTogglePrivacy}
+                disabled={privacyBusy}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor={colors.text}
+              />
+            </View>
+
+            {session && <BadgesRow userId={session.user.id} stats={stats} />}
 
             <View style={styles.garageHeaderRow}>
               <SectionHeader

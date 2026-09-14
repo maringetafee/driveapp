@@ -72,6 +72,9 @@ export default function RootLayout() {
           />
           <Stack.Screen name="u/[username]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="search" options={{ headerShown: true, title: 'Buscar usuarios' }} />
+          <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notificaciones' }} />
+          <Stack.Screen name="groups/index" options={{ headerShown: true, title: 'Grupos' }} />
+          <Stack.Screen name="groups/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="vehicle/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="mod-car/[vehicleId]" options={{ headerShown: true, title: 'Mod Car' }} />
         </Stack.Protected>

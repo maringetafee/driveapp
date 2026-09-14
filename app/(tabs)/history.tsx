@@ -1,13 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration } from '../../src/utils/geo';
 import { scoreTone } from '../../src/utils/scoreTone';
-import type { Trip } from '../../src/types/database';
+import type { Trip, TripTag } from '../../src/types/database';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
 import EmptyState from '../../src/components/ui/EmptyState';
@@ -15,26 +15,59 @@ import { SkeletonList } from '../../src/components/ui/Skeleton';
 
 const STANDOUT_SCORE = 90;
 
+const TAG_LABEL: Record<TripTag, string> = {
+  commute: '🏢 Commute',
+  road_trip: '🛣️ Viaje largo',
+  night: '🌙 Nocturno',
+  other: '📍 Otro',
+};
+
+const TAG_FILTERS: { key: TripTag | 'all'; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'commute', label: '🏢 Commute' },
+  { key: 'road_trip', label: '🛣️ Viaje largo' },
+  { key: 'night', label: '🌙 Nocturno' },
+  { key: 'other', label: '📍 Otro' },
+];
+
 export default function HistoryScreen() {
   const session = useAuthStore((s) => s.session);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [tagFilter, setTagFilter] = useState<TripTag | 'all'>('all');
 
-  useFocusEffect(
-    useCallback(() => {
+  const loadTrips = useCallback(
+    async (opts?: { silent?: boolean }) => {
       if (!session) return;
-      setLoading(true);
-      supabase
+      if (!opts?.silent) setLoading(true);
+      const { data } = await supabase
         .from('trips')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('started_at', { ascending: false })
-        .then(({ data }) => {
-          setTrips(data ?? []);
-          setLoading(false);
-        });
-    }, [session])
+        .order('started_at', { ascending: false });
+      setTrips(data ?? []);
+      setLoading(false);
+    },
+    [session]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTrips();
+    }, [loadTrips])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadTrips({ silent: true });
+    setRefreshing(false);
+  };
+
+  const filteredTrips = useMemo(
+    () => (tagFilter === 'all' ? trips : trips.filter((t) => t.tag === tagFilter)),
+    [trips, tagFilter]
   );
 
   return (
@@ -42,9 +75,29 @@ export default function HistoryScreen() {
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.list}
-        data={trips}
+        data={filteredTrips}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={<Text style={styles.header}>Historial</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
+            <Text style={styles.header}>Historial</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {TAG_FILTERS.map((f) => (
+                <Pressable
+                  key={f.key}
+                  style={[styles.filterPill, tagFilter === f.key && styles.filterPillActive]}
+                  onPress={() => setTagFilter(f.key)}
+                >
+                  <Text style={[styles.filterPillText, tagFilter === f.key && styles.filterPillTextActive]}>
+                    {f.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        }
         ListEmptyComponent={
           loading ? (
             <SkeletonList />
@@ -81,6 +134,7 @@ export default function HistoryScreen() {
                   <Text style={styles.metric}>{formatDuration(item.duration_seconds ?? 0)}</Text>
                   {standout && <Text style={styles.standoutTag}>🔥 Destacado</Text>}
                 </View>
+                {item.tag && <Text style={styles.tagText}>{TAG_LABEL[item.tag]}</Text>}
               </Pressable>
             </FadeSlideIn>
           );
@@ -93,7 +147,19 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: { padding: spacing.lg, gap: spacing.md },
-  header: { ...type.title, color: colors.text, marginBottom: spacing.sm },
+  header: { ...type.title, color: colors.text },
+  filterRow: { gap: spacing.sm, paddingBottom: spacing.xs },
+  filterPill: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+  },
+  filterPillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  filterPillText: { color: colors.textMuted, ...type.caption },
+  filterPillTextActive: { color: colors.accent },
+  tagText: { ...type.caption, color: colors.textFaint, marginTop: 6 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

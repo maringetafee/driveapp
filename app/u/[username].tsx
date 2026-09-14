@@ -26,6 +26,7 @@ export default function PublicProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followBusy, setFollowBusy] = useState(false);
 
@@ -70,11 +71,12 @@ export default function PublicProfileScreen() {
         if (myUserId && myUserId !== profileData.id) {
           const { data: followRow } = await supabase
             .from('follows')
-            .select('follower_id')
+            .select('status')
             .eq('follower_id', myUserId)
             .eq('followed_id', profileData.id)
             .maybeSingle();
-          setIsFollowing(!!followRow);
+          setIsFollowing(followRow?.status === 'accepted');
+          setIsPending(followRow?.status === 'pending');
         }
 
         setLoading(false);
@@ -90,12 +92,16 @@ export default function PublicProfileScreen() {
   const onToggleFollow = async () => {
     if (!myUserId || !profile) return;
     setFollowBusy(true);
-    if (isFollowing) {
+    if (isFollowing || isPending) {
       await supabase.from('follows').delete().eq('follower_id', myUserId).eq('followed_id', profile.id);
+      if (isFollowing) setFollowersCount((c) => Math.max(0, c - 1));
       setIsFollowing(false);
-      setFollowersCount((c) => Math.max(0, c - 1));
+      setIsPending(false);
+    } else if (profile.is_private) {
+      await supabase.from('follows').insert({ follower_id: myUserId, followed_id: profile.id, status: 'pending' });
+      setIsPending(true);
     } else {
-      await supabase.from('follows').insert({ follower_id: myUserId, followed_id: profile.id });
+      await supabase.from('follows').insert({ follower_id: myUserId, followed_id: profile.id, status: 'accepted' });
       setIsFollowing(true);
       setFollowersCount((c) => c + 1);
     }
@@ -123,6 +129,7 @@ export default function PublicProfileScreen() {
   }
 
   const isOwnProfile = myUsername === profile.username;
+  const contentLocked = profile.is_private && !isOwnProfile && !isFollowing;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -158,19 +165,23 @@ export default function PublicProfileScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.followButton,
-                  isFollowing && styles.followButtonActive,
+                  (isFollowing || isPending) && styles.followButtonActive,
                   pressed && { opacity: 0.85 },
                 ]}
                 onPress={onToggleFollow}
                 disabled={followBusy}
               >
-                <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                  {isFollowing ? '✓ Siguiendo' : 'Seguir'}
+                <Text style={[styles.followButtonText, (isFollowing || isPending) && styles.followButtonTextActive]}>
+                  {isFollowing ? '✓ Siguiendo' : isPending ? 'Solicitado' : 'Seguir'}
                 </Text>
               </Pressable>
             )}
 
-            {stats && (
+            {contentLocked && (
+              <EmptyState emoji="🔒" title="Cuenta privada" subtitle="Sigue a este conductor para ver sus trayectos y estadísticas." />
+            )}
+
+            {!contentLocked && stats && (
               <StatRow
                 items={[
                   { label: 'Trayectos', value: String(stats.tripCount) },
@@ -180,14 +191,14 @@ export default function PublicProfileScreen() {
               />
             )}
 
-            {stats && <BestMarks stats={stats} units={profile.units} />}
+            {!contentLocked && stats && <BestMarks stats={stats} units={profile.units} />}
 
-            <BadgesRow userId={profile.id} />
+            {!contentLocked && <BadgesRow userId={profile.id} stats={stats} />}
 
-            <SectionHeader title="Garaje" />
+            {!contentLocked && <SectionHeader title="Garaje" />}
           </View>
         }
-        ListEmptyComponent={<Text style={styles.empty}>Sin coches todavía.</Text>}
+        ListEmptyComponent={!contentLocked ? <Text style={styles.empty}>Sin coches todavía.</Text> : null}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.vehicleName}>

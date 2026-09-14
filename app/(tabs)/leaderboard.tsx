@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
@@ -57,43 +57,48 @@ export default function LeaderboardScreen() {
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [records, setRecords] = useState<RecordItem[] | null>(null);
 
   const scopeValue = scope === 'city' ? profile?.city ?? null : scope === 'country' ? profile?.country ?? null : null;
   const scopeUnavailable = (scope === 'city' && !profile?.city) || (scope === 'country' && !profile?.country);
 
-  useFocusEffect(
-    useCallback(() => {
+  const loadRows = useCallback(
+    async (opts?: { silent?: boolean }) => {
       if (!session || scopeUnavailable) {
         setRows([]);
         setLoading(false);
         return;
       }
-      let cancelled = false;
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       setErrorMsg(null);
 
-      supabase
-        .rpc('compute_leaderboard', {
-          p_metric: metric,
-          p_scope: scope,
-          p_scope_value: scopeValue,
-          p_period: period,
-          p_limit: 200,
-        })
-        .then(({ data, error }) => {
-          if (cancelled) return;
-          if (error) setErrorMsg(error.message);
-          setRows((data as Row[]) ?? []);
-          setLoading(false);
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }, [session, metric, scope, period, scopeValue, scopeUnavailable])
+      const { data, error } = await supabase.rpc('compute_leaderboard', {
+        p_metric: metric,
+        p_scope: scope,
+        p_scope_value: scopeValue,
+        p_period: period,
+        p_limit: 200,
+      });
+      if (error) setErrorMsg(error.message);
+      setRows((data as Row[]) ?? []);
+      setLoading(false);
+    },
+    [session, metric, scope, period, scopeValue, scopeUnavailable]
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRows();
+    }, [loadRows])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadRows({ silent: true });
+    setRefreshing(false);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -154,6 +159,12 @@ export default function LeaderboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.filters}>
+        <View style={styles.topRow}>
+          <Text style={styles.screenTitle}>Ranking</Text>
+          <Pressable style={styles.groupsButton} onPress={() => router.push('/groups')} hitSlop={8}>
+            <Text style={styles.groupsButtonText}>👥 Grupos</Text>
+          </Pressable>
+        </View>
         <FilterRow options={METRICS} value={metric} onChange={setMetric} />
         <FilterRow options={SCOPES} value={scope} onChange={setScope} />
         <FilterRow options={PERIODS} value={period} onChange={setPeriod} />
@@ -191,7 +202,12 @@ export default function LeaderboardScreen() {
           <EmptyState emoji="🏆" title="Sin datos todavía" subtitle="Nadie ha registrado trayectos con este filtro aún." />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+          }
+        >
           {top3.length > 0 && <Podium rows={top3} formatValue={formatValue} />}
 
           {restRows.map((item, index) => (
@@ -300,6 +316,22 @@ function FilterRow<T extends string>({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   filters: { paddingTop: spacing.md, gap: spacing.sm },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+  },
+  screenTitle: { ...type.title, color: colors.text },
+  groupsButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+  },
+  groupsButtonText: { color: colors.text, ...type.caption, fontWeight: '700' },
   filterRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   pill: {
     borderWidth: 1.5,

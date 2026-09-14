@@ -16,7 +16,31 @@ export interface Profile {
   country: string | null;
   city: string | null;
   units: Units;
+  is_private: boolean;
   onboarded_at: string | null;
+  created_at: string;
+}
+
+export type TripTag = 'commute' | 'road_trip' | 'night' | 'other';
+export type FollowStatus = 'pending' | 'accepted';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'follow_request' | 'follow_accept' | 'badge';
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  actor_id: string | null;
+  type: NotificationType;
+  trip_id: string | null;
+  badge_id: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  owner_id: string;
+  invite_code: string;
   created_at: string;
 }
 
@@ -44,6 +68,7 @@ export interface Trip {
   driving_score: number | null;
   route_geojson: LineString | null;
   road_type: string | null;
+  tag: TripTag | null;
   is_public: boolean;
   created_at: string;
 }

@@ -9,7 +9,10 @@ import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
 import { computeStreak, timeGreeting } from '../../src/utils/homeInsights';
 import { scoreTone } from '../../src/utils/scoreTone';
+import { fetchTopFriendThisWeek, fetchWeeklyRecap, type FriendComparison, type WeeklyRecap } from '../../src/utils/weeklyRecap';
 import TripRouteMap from '../../src/components/TripRouteMap';
+import FriendCompareCard from '../../src/components/FriendCompareCard';
+import WeeklyRecapCard from '../../src/components/WeeklyRecapCard';
 import StatRow from '../../src/components/ui/StatRow';
 import Divider from '../../src/components/ui/Divider';
 import SectionHeader from '../../src/components/ui/SectionHeader';
@@ -32,6 +35,8 @@ export default function DriveScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [lastTrip, setLastTrip] = useState<LastTrip | null>(null);
   const [streak, setStreak] = useState(0);
+  const [recap, setRecap] = useState<WeeklyRecap | null>(null);
+  const [topFriend, setTopFriend] = useState<FriendComparison | null>(null);
   const scale = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -51,6 +56,8 @@ export default function DriveScreen() {
           setLastTrip(rows[0] ?? null);
           setStreak(computeStreak(rows.map((r) => r.started_at)));
         });
+      fetchWeeklyRecap(session.user.id).then(setRecap);
+      fetchTopFriendThisWeek(session.user.id).then(setTopFriend);
     }, [session])
   );
 
@@ -126,7 +133,7 @@ export default function DriveScreen() {
       setSaving(false);
 
       if (!insertError && data) {
-        router.push(`/trip/${data.id}`);
+        router.push(`/trip/${data.id}?justFinished=1`);
       }
     } else {
       await start();
@@ -233,6 +240,12 @@ export default function DriveScreen() {
                     <Text style={styles.streakNumber}>{streak}</Text> días seguidos conduciendo
                   </Text>
                 </View>
+              )}
+
+              {recap && <WeeklyRecapCard recap={recap} units={units} />}
+
+              {topFriend && recap && (
+                <FriendCompareCard friend={topFriend} myDistanceMeters={recap.distanceMeters} units={units} />
               )}
             </View>
           </>

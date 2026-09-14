@@ -13,6 +13,7 @@ interface ResultProfile {
   username: string;
   city: string | null;
   country: string | null;
+  is_private: boolean;
 }
 
 export default function SearchScreen() {
@@ -20,6 +21,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ResultProfile[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -39,7 +41,7 @@ export default function SearchScreen() {
     debounceRef.current = setTimeout(async () => {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, username, city, country')
+        .select('id, username, city, country, is_private')
         .ilike('username', `%${trimmed}%`)
         .neq('id', session.user.id)
         .limit(20);
@@ -52,12 +54,14 @@ export default function SearchScreen() {
       if (found.length) {
         const { data: myFollows } = await supabase
           .from('follows')
-          .select('followed_id')
+          .select('followed_id, status')
           .eq('follower_id', session.user.id)
           .in('followed_id', found.map((p) => p.id));
-        setFollowingIds(new Set((myFollows ?? []).map((f) => f.followed_id)));
+        setFollowingIds(new Set((myFollows ?? []).filter((f) => f.status === 'accepted').map((f) => f.followed_id)));
+        setPendingIds(new Set((myFollows ?? []).filter((f) => f.status === 'pending').map((f) => f.followed_id)));
       } else {
         setFollowingIds(new Set());
+        setPendingIds(new Set());
       }
     }, 350);
 
@@ -66,24 +70,34 @@ export default function SearchScreen() {
     };
   }, [query, session]);
 
-  const onToggleFollow = async (targetId: string) => {
+  const onToggleFollow = async (target: ResultProfile) => {
     if (!session) return;
-    setBusyIds((prev) => new Set(prev).add(targetId));
-    const isFollowing = followingIds.has(targetId);
-    if (isFollowing) {
-      await supabase.from('follows').delete().eq('follower_id', session.user.id).eq('followed_id', targetId);
+    setBusyIds((prev) => new Set(prev).add(target.id));
+    const isFollowing = followingIds.has(target.id);
+    const isPending = pendingIds.has(target.id);
+
+    if (isFollowing || isPending) {
+      await supabase.from('follows').delete().eq('follower_id', session.user.id).eq('followed_id', target.id);
       setFollowingIds((prev) => {
         const next = new Set(prev);
-        next.delete(targetId);
+        next.delete(target.id);
         return next;
       });
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+    } else if (target.is_private) {
+      await supabase.from('follows').insert({ follower_id: session.user.id, followed_id: target.id, status: 'pending' });
+      setPendingIds((prev) => new Set(prev).add(target.id));
     } else {
-      await supabase.from('follows').insert({ follower_id: session.user.id, followed_id: targetId });
-      setFollowingIds((prev) => new Set(prev).add(targetId));
+      await supabase.from('follows').insert({ follower_id: session.user.id, followed_id: target.id, status: 'accepted' });
+      setFollowingIds((prev) => new Set(prev).add(target.id));
     }
     setBusyIds((prev) => {
       const next = new Set(prev);
-      next.delete(targetId);
+      next.delete(target.id);
       return next;
     });
   };
@@ -116,23 +130,26 @@ export default function SearchScreen() {
         }
         renderItem={({ item }) => {
           const following = followingIds.has(item.id);
+          const pending = pendingIds.has(item.id);
           const busy = busyIds.has(item.id);
           return (
             <Pressable style={styles.row} onPress={() => router.push(`/u/${item.username}`)}>
               <Avatar username={item.username} size={44} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.username}>@{item.username}</Text>
+                <Text style={styles.username}>
+                  @{item.username} {item.is_private && '🔒'}
+                </Text>
                 {(item.city || item.country) && (
                   <Text style={styles.location}>{[item.city, item.country].filter(Boolean).join(', ')}</Text>
                 )}
               </View>
               <Pressable
-                style={[styles.followButton, following && styles.followButtonActive]}
-                onPress={() => onToggleFollow(item.id)}
+                style={[styles.followButton, (following || pending) && styles.followButtonActive]}
+                onPress={() => onToggleFollow(item)}
                 disabled={busy}
               >
-                <Text style={[styles.followButtonText, following && styles.followButtonTextActive]}>
-                  {following ? '✓ Siguiendo' : 'Seguir'}
+                <Text style={[styles.followButtonText, (following || pending) && styles.followButtonTextActive]}>
+                  {following ? '✓ Siguiendo' : pending ? 'Solicitado' : 'Seguir'}
                 </Text>
               </Pressable>
             </Pressable>
