@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/geojson": "^7946.0.16",
     "@types/react": "~19.2.2",
+    "supabase": "^2.117.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
