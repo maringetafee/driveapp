@@ -21,7 +21,14 @@ export default function StatRow({ items, boxed = true, style }: Props) {
         <View key={item.label} style={styles.itemWrap}>
           {i > 0 && <View style={styles.divider} />}
           <View style={styles.item}>
-            <Text style={[styles.value, item.tone && { color: item.tone }]}>{item.value}</Text>
+            <Text
+              style={[styles.value, item.tone && { color: item.tone }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {item.value}
+            </Text>
             <Text style={styles.label}>{item.label}</Text>
           </View>
         </View>
@@ -42,6 +49,6 @@ const styles = StyleSheet.create({
   itemWrap: { flex: 1, flexDirection: 'row', alignItems: 'stretch' },
   divider: { width: 1, backgroundColor: colors.border, marginVertical: 2 },
   item: { flex: 1, alignItems: 'center' },
-  value: { ...type.heading, color: colors.text },
+  value: { ...type.stat, color: colors.text },
   label: { ...type.caption, color: colors.textMuted, marginTop: 3, textAlign: 'center' },
 });

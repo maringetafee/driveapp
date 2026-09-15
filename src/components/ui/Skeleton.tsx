@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   sweep: {
     width: 60,
     height: '100%',
-    backgroundColor: 'rgba(247, 248, 252, 0.08)',
+    backgroundColor: 'rgba(249, 247, 245, 0.08)',
   },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   lineShort: { width: '40%', height: 12, borderRadius: 4 },

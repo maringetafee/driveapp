@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { colors, fonts, radius, spacing, type } from '../theme/colors';
 import { formatDistance, formatSpeed } from '../utils/geo';
 import type { AggregateTripStats } from '../utils/aggregateTripStats';
 import type { Units } from '../types/database';
@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emoji: { fontSize: 16, marginBottom: 4 },
-  value: { ...type.subheading, color: colors.text },
+  value: { ...type.subheading, fontFamily: fonts.numeralBold, color: colors.text },
   label: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 });

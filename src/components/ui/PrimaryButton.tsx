@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
-import { colors, radius, type } from '../../theme/colors';
+import { colors, fonts, radius, type } from '../../theme/colors';
 
 type Variant = 'primary' | 'danger' | 'secondary' | 'ghost';
 
@@ -35,7 +35,15 @@ export default function PrimaryButton({ title, onPress, variant = 'primary', dis
         style={[styles.base, variantStyles[variant], isDisabled && styles.disabled]}
       >
         {loading ? (
-          <ActivityIndicator color={variant === 'secondary' || variant === 'ghost' ? colors.accent : colors.background} />
+          <ActivityIndicator
+            color={
+              variant === 'secondary' || variant === 'ghost'
+                ? colors.accent
+                : variant === 'danger'
+                  ? colors.onDanger
+                  : colors.onAccent
+            }
+          />
         ) : (
           <Text style={[styles.text, variantTextStyles[variant]]}>{title}</Text>
         )}
@@ -51,7 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { ...type.subheading, letterSpacing: 0.1 },
+  text: { ...type.subheading, fontFamily: fonts.bodyExtraBold, letterSpacing: 0.1 },
   disabled: { opacity: 0.45 },
 });
 
@@ -71,8 +79,8 @@ const variantStyles = StyleSheet.create({
 });
 
 const variantTextStyles = StyleSheet.create({
-  primary: { color: '#04140D' },
-  danger: { color: '#1A0505' },
+  primary: { color: colors.onAccent },
+  danger: { color: colors.onDanger },
   secondary: { color: colors.accent },
   ghost: { color: colors.text },
 });

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/state/authStore';
-import { colors, radius, spacing, type } from '../src/theme/colors';
+import { colors, fonts, spacing, type } from '../src/theme/colors';
 import Avatar from '../src/components/ui/Avatar';
 import EmptyState from '../src/components/ui/EmptyState';
+import FollowButton, { type FollowState } from '../src/components/ui/FollowButton';
+import Input from '../src/components/ui/Input';
+import { SkeletonList } from '../src/components/ui/Skeleton';
 
 interface ResultProfile {
   id: string;
@@ -105,10 +108,10 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.searchBar}>
-        <TextInput
-          style={styles.input}
+        <Input
+          variant="pill"
+          icon="search"
           placeholder="Buscar por nombre de usuario…"
-          placeholderTextColor={colors.textFaint}
           autoCapitalize="none"
           autoFocus
           value={query}
@@ -122,7 +125,9 @@ export default function SearchScreen() {
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          !loading && searched ? (
+          loading ? (
+            <SkeletonList />
+          ) : searched ? (
             <EmptyState emoji="🔍" title="Sin resultados" subtitle="Prueba con otro nombre de usuario." />
           ) : !query.trim() ? (
             <EmptyState emoji="👋" title="Encuentra a otros conductores" subtitle="Busca por su nombre de usuario para seguirlos." />
@@ -132,6 +137,7 @@ export default function SearchScreen() {
           const following = followingIds.has(item.id);
           const pending = pendingIds.has(item.id);
           const busy = busyIds.has(item.id);
+          const followState: FollowState = following ? 'following' : pending ? 'pending' : 'none';
           return (
             <Pressable style={styles.row} onPress={() => router.push(`/u/${item.username}`)}>
               <Avatar username={item.username} size={44} />
@@ -143,15 +149,7 @@ export default function SearchScreen() {
                   <Text style={styles.location}>{[item.city, item.country].filter(Boolean).join(', ')}</Text>
                 )}
               </View>
-              <Pressable
-                style={[styles.followButton, (following || pending) && styles.followButtonActive]}
-                onPress={() => onToggleFollow(item)}
-                disabled={busy}
-              >
-                <Text style={[styles.followButtonText, (following || pending) && styles.followButtonTextActive]}>
-                  {following ? '✓ Siguiendo' : pending ? 'Solicitado' : 'Seguir'}
-                </Text>
-              </Pressable>
+              <FollowButton state={followState} onPress={() => onToggleFollow(item)} disabled={busy} />
             </Pressable>
           );
         }}
@@ -163,27 +161,8 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   searchBar: { padding: spacing.lg },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    color: colors.text,
-    fontSize: 15,
-  },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  username: { ...type.body, color: colors.text, fontWeight: '700' },
+  username: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
   location: { ...type.caption, color: colors.textMuted, marginTop: 1 },
-  followButton: {
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.accent,
-  },
-  followButtonActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1.5, borderColor: colors.accent },
-  followButtonText: { color: '#04140D', fontWeight: '800', fontSize: 12 },
-  followButtonTextActive: { color: colors.accent },
 });

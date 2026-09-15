@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -9,27 +8,30 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import ViewShot, { type ViewShotRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
 import { scoreTone } from '../../src/utils/scoreTone';
 import { accelerationScore, brakingScore, corneringScore } from '../../src/utils/subScores';
 import TripRouteMap from '../../src/components/TripRouteMap';
 import TripShareCard from '../../src/components/TripShareCard';
 import Avatar from '../../src/components/ui/Avatar';
+import Chip from '../../src/components/ui/Chip';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
 import StatRow from '../../src/components/ui/StatRow';
 import ProgressBar from '../../src/components/ui/ProgressBar';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import Divider from '../../src/components/ui/Divider';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Profile, Trip, TripMetrics, TripTag } from '../../src/types/database';
 
 const TAG_OPTIONS: { key: TripTag; label: string }[] = [
@@ -177,8 +179,8 @@ export default function TripSummaryScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.text} />
+        <View style={styles.content}>
+          <SkeletonList count={1} />
         </View>
       </SafeAreaView>
     );
@@ -220,15 +222,7 @@ export default function TripSummaryScreen() {
           {isOwnTrip && (
             <View style={styles.tagRow}>
               {TAG_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.key}
-                  style={[styles.tagPill, trip.tag === opt.key && styles.tagPillActive]}
-                  onPress={() => onSetTag(opt.key)}
-                >
-                  <Text style={[styles.tagPillText, trip.tag === opt.key && styles.tagPillTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
+                <Chip key={opt.key} label={opt.label} active={trip.tag === opt.key} onPress={() => onSetTag(opt.key)} />
               ))}
             </View>
           )}
@@ -258,8 +252,12 @@ export default function TripSummaryScreen() {
 
           <View style={styles.socialRow}>
             <Pressable style={({ pressed }) => [styles.likeButton, pressed && { opacity: 0.8 }]} onPress={onToggleLike} disabled={!myUserId}>
-              <Text style={[styles.likeIcon, liked && styles.likeIconActive]}>{liked ? '♥' : '♡'}</Text>
-              <Text style={[styles.likeCount, liked && styles.likeIconActive]}>{likeCount}</Text>
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={19}
+                color={liked ? colors.danger : colors.textMuted}
+              />
+              <Text style={[styles.likeCount, liked && styles.likeCountActive]}>{likeCount}</Text>
             </Pressable>
             <PrimaryButton
               title={sharing ? 'Generando…' : 'Compartir tarjeta'}
@@ -293,18 +291,21 @@ export default function TripSummaryScreen() {
 
             {myUserId && (
               <View style={styles.commentInputRow}>
-                <TextInput
+                <Input
+                  variant="pill"
                   style={styles.commentInput}
                   placeholder="Escribe un comentario…"
-                  placeholderTextColor={colors.textFaint}
                   value={commentText}
                   onChangeText={setCommentText}
                   maxLength={500}
                 />
-                <Pressable onPress={onPostComment} disabled={postingComment || !commentText.trim()}>
-                  <Text style={[styles.commentSend, (postingComment || !commentText.trim()) && { opacity: 0.4 }]}>
-                    {postingComment ? '…' : 'Enviar'}
-                  </Text>
+                <Pressable
+                  onPress={onPostComment}
+                  disabled={postingComment || !commentText.trim()}
+                  style={[styles.commentSend, (postingComment || !commentText.trim()) && { opacity: 0.4 }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="send" size={18} color={colors.accentAlt} />
                 </Pressable>
               </View>
             )}
@@ -338,16 +339,6 @@ const styles = StyleSheet.create({
   score: { marginVertical: spacing.xs },
   subScores: { gap: spacing.md },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  tagPill: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: spacing.md,
-  },
-  tagPillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  tagPillText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  tagPillTextActive: { color: colors.accent },
   socialRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   likeButton: {
     flexDirection: 'row',
@@ -359,11 +350,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: spacing.lg,
   },
-  likeIcon: { color: colors.textMuted, fontSize: 18 },
-  likeIconActive: { color: colors.danger },
-  likeCount: { color: colors.text, fontWeight: '700' },
+  likeCountActive: { color: colors.danger },
+  likeCount: { fontFamily: fonts.numeralSemiBold, color: colors.text },
   commentsSection: { gap: spacing.sm },
-  empty: { color: colors.textMuted, fontSize: 13 },
+  empty: { ...type.caption, color: colors.textMuted },
   commentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -371,20 +361,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   commentDivider: { marginTop: 2 },
-  commentAuthor: { color: colors.accent, fontSize: 12, fontWeight: '700', marginBottom: 2 },
-  commentBody: { color: colors.text, fontSize: 14 },
+  commentAuthor: { ...type.caption, color: colors.accent, marginBottom: 2 },
+  commentBody: { ...type.body, color: colors.text },
   commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  commentInput: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+  commentInput: { flex: 1 },
+  commentSend: {
+    width: 40,
+    height: 40,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 11,
-    color: colors.text,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  commentSend: { color: colors.accentAlt, fontWeight: '800' },
-  deleteLink: { color: colors.danger, fontWeight: '700', textAlign: 'center' },
+  deleteLink: { ...type.caption, color: colors.danger, textAlign: 'center' },
   offscreen: { position: 'absolute', top: -9999, left: -9999 },
 });

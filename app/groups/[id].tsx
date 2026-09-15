@@ -1,13 +1,16 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import Avatar from '../../src/components/ui/Avatar';
+import Chip from '../../src/components/ui/Chip';
 import EmptyState from '../../src/components/ui/EmptyState';
+import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Group, LeaderboardMetric, LeaderboardPeriod } from '../../src/types/database';
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
@@ -135,7 +138,7 @@ export default function GroupDetailScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           {groupLoading ? (
-            <ActivityIndicator color={colors.text} />
+            <SkeletonList count={1} />
           ) : (
             <EmptyState emoji="🔍" title="Grupo no encontrado" subtitle="Puede que ya no exista o que no tengas acceso." />
           )}
@@ -159,32 +162,30 @@ export default function GroupDetailScreen() {
 
         <View style={styles.filterRow}>
           {METRICS.map((m) => (
-            <Pressable key={m.key} style={[styles.pill, metric === m.key && styles.pillActive]} onPress={() => setMetric(m.key)}>
-              <Text style={[styles.pillText, metric === m.key && styles.pillTextActive]}>{m.label}</Text>
-            </Pressable>
+            <Chip key={m.key} label={m.label} active={metric === m.key} onPress={() => setMetric(m.key)} />
           ))}
         </View>
         <View style={styles.filterRow}>
           {PERIODS.map((p) => (
-            <Pressable key={p.key} style={[styles.pill, period === p.key && styles.pillActive]} onPress={() => setPeriod(p.key)}>
-              <Text style={[styles.pillText, period === p.key && styles.pillTextActive]}>{p.label}</Text>
-            </Pressable>
+            <Chip key={p.key} label={p.label} active={period === p.key} onPress={() => setPeriod(p.key)} />
           ))}
         </View>
 
         {loading ? (
-          <ActivityIndicator color={colors.text} style={{ marginTop: spacing.xl }} />
+          <SkeletonList count={4} />
         ) : rows.length === 0 ? (
           <EmptyState emoji="🏆" title="Sin datos todavía" subtitle="Nadie del grupo ha registrado trayectos con este filtro." />
         ) : (
           <View style={{ gap: spacing.sm }}>
-            {rows.map((row) => (
-              <Pressable key={row.user_id} style={styles.row} onPress={() => router.push(`/u/${row.username}`)}>
-                <Text style={styles.rank}>#{row.rank}</Text>
-                <Avatar username={row.username} size={32} />
-                <Text style={styles.username}>@{row.username}</Text>
-                <Text style={styles.value}>{formatValue(row)}</Text>
-              </Pressable>
+            {rows.map((row, index) => (
+              <FadeSlideIn key={row.user_id} index={index}>
+                <Pressable style={styles.row} onPress={() => router.push(`/u/${row.username}`)}>
+                  <Text style={styles.rank}>#{row.rank}</Text>
+                  <Avatar username={row.username} size={32} />
+                  <Text style={styles.username}>@{row.username}</Text>
+                  <Text style={styles.value}>{formatValue(row)}</Text>
+                </Pressable>
+              </FadeSlideIn>
             ))}
           </View>
         )}
@@ -213,18 +214,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   codeLabel: { ...type.caption, color: colors.textMuted },
-  codeValue: { color: colors.accent, fontSize: 26, fontWeight: '800', letterSpacing: 4 },
+  codeValue: { fontFamily: fonts.numeralBold, color: colors.accent, fontSize: 26, letterSpacing: 4 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  pill: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: spacing.md,
-  },
-  pillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  pillText: { color: colors.textMuted, ...type.caption },
-  pillTextActive: { color: colors.accent },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,9 +226,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
   },
-  rank: { color: colors.textMuted, fontWeight: '700', width: 28, textAlign: 'center' },
-  username: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
-  value: { color: colors.accent, fontWeight: '800', fontSize: 15 },
+  rank: { fontFamily: fonts.numeralSemiBold, fontSize: 15, color: colors.textMuted, width: 28, textAlign: 'center' },
+  username: { ...type.body, fontFamily: fonts.bodySemiBold, color: colors.text, flex: 1 },
+  value: { fontFamily: fonts.numeralBold, fontSize: 15, color: colors.accent },
   leaveLink: { alignSelf: 'center', marginTop: spacing.md },
-  leaveLinkText: { color: colors.danger, ...type.caption, fontWeight: '700' },
+  leaveLinkText: { ...type.caption, color: colors.danger },
 });

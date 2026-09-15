@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, radius, spacing, type } from '../theme/colors';
 import { formatDistance } from '../utils/geo';
 import type { Units } from '../types/database';
 import type { WeeklyRecap } from '../utils/weeklyRecap';
@@ -20,9 +21,16 @@ export default function WeeklyRecapCard({ recap, units }: { recap: WeeklyRecap; 
         <Stat value={recap.avgDrivingScore != null ? String(recap.avgDrivingScore) : '—'} label="Score medio" />
       </View>
       {deltaPct != null && (
-        <Text style={[styles.delta, delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
-          {delta >= 0 ? '▲' : '▼'} {Math.abs(deltaPct)}% vs. la semana anterior
-        </Text>
+        <View style={styles.deltaRow}>
+          <Ionicons
+            name={delta >= 0 ? 'arrow-up' : 'arrow-down'}
+            size={13}
+            color={delta >= 0 ? colors.accent : colors.textFaint}
+          />
+          <Text style={[styles.delta, delta >= 0 ? styles.deltaUp : styles.deltaDown]}>
+            {Math.abs(deltaPct)}% vs. la semana anterior
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -49,9 +57,10 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'center', flex: 1 },
-  statValue: { ...type.heading, color: colors.text },
+  statValue: { ...type.heading, fontFamily: fonts.numeralBold, color: colors.text },
   statLabel: { ...type.caption, color: colors.textMuted, marginTop: 2 },
-  delta: { ...type.caption, fontWeight: '700', textAlign: 'center' },
+  deltaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  delta: { ...type.caption },
   deltaUp: { color: colors.accent },
   deltaDown: { color: colors.textFaint },
 });

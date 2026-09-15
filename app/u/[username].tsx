@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
 import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import BadgesRow from '../../src/components/BadgesRow';
@@ -13,6 +13,8 @@ import Avatar from '../../src/components/ui/Avatar';
 import StatRow from '../../src/components/ui/StatRow';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import EmptyState from '../../src/components/ui/EmptyState';
+import FollowButton, { type FollowState } from '../../src/components/ui/FollowButton';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Profile, Vehicle } from '../../src/types/database';
 
 export default function PublicProfileScreen() {
@@ -111,8 +113,8 @@ export default function PublicProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.text} />
+        <View style={styles.list}>
+          <SkeletonList count={1} />
         </View>
       </SafeAreaView>
     );
@@ -162,19 +164,12 @@ export default function PublicProfileScreen() {
             </View>
 
             {!isOwnProfile && myUserId && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.followButton,
-                  (isFollowing || isPending) && styles.followButtonActive,
-                  pressed && { opacity: 0.85 },
-                ]}
+              <FollowButton
+                size="md"
+                state={(isFollowing ? 'following' : isPending ? 'pending' : 'none') as FollowState}
                 onPress={onToggleFollow}
                 disabled={followBusy}
-              >
-                <Text style={[styles.followButtonText, (isFollowing || isPending) && styles.followButtonTextActive]}>
-                  {isFollowing ? '✓ Siguiendo' : isPending ? 'Solicitado' : 'Seguir'}
-                </Text>
-              </Pressable>
+              />
             )}
 
             {contentLocked && (
@@ -219,21 +214,11 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.sm, gap: spacing.lg },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   username: { ...type.title, color: colors.text },
-  location: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  location: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted, marginTop: 2 },
   followRow: { flexDirection: 'row', gap: spacing.lg },
-  followCount: { color: colors.textMuted, fontSize: 13 },
-  followNumber: { color: colors.text, fontWeight: '700' },
-  followButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.accent,
-  },
-  followButtonActive: { backgroundColor: colors.surfaceAlt, borderWidth: 1.5, borderColor: colors.accent },
-  followButtonText: { color: '#04140D', fontWeight: '800' },
-  followButtonTextActive: { color: colors.accent },
-  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 12 },
+  followCount: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted },
+  followNumber: { fontFamily: fonts.bodyBold, color: colors.text },
+  empty: { ...type.body, color: colors.textMuted, textAlign: 'center', marginTop: 12 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -241,5 +226,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
   },
-  vehicleName: { ...type.body, color: colors.text, fontWeight: '700' },
+  vehicleName: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
 });

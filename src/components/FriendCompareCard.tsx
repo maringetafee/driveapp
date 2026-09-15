@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { colors, fonts, radius, spacing, type } from '../theme/colors';
 import { formatDistance } from '../utils/geo';
 import type { Units } from '../types/database';
 import type { FriendComparison } from '../utils/weeklyRecap';
@@ -45,6 +45,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   emoji: { fontSize: 24 },
-  title: { ...type.body, color: colors.text, fontWeight: '700' },
+  title: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
   subtitle: { ...type.caption, color: colors.textMuted, marginTop: 2 },
 });

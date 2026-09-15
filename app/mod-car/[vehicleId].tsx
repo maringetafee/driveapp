@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { supabase } from '../../src/lib/supabase';
 import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
+import Chip from '../../src/components/ui/Chip';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 
 const STYLE_PRESETS = ['Wide body deportivo', 'JDM bajado', 'Off-road elevado', 'Look eléctrico neón'];
@@ -122,22 +124,10 @@ export default function ModCarScreen() {
           <Text style={styles.stepLabel}>2 · ESTILO</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetRow}>
             {STYLE_PRESETS.map((preset) => (
-              <Pressable
-                key={preset}
-                style={[styles.presetPill, prompt === preset && styles.presetPillActive]}
-                onPress={() => setPrompt(preset)}
-              >
-                <Text style={[styles.presetText, prompt === preset && styles.presetTextActive]}>{preset}</Text>
-              </Pressable>
+              <Chip key={preset} label={preset} active={prompt === preset} onPress={() => setPrompt(preset)} />
             ))}
           </ScrollView>
-          <TextInput
-            style={styles.input}
-            placeholder="O describe tu propio estilo…"
-            placeholderTextColor={colors.textMuted}
-            value={prompt}
-            onChangeText={setPrompt}
-          />
+          <Input placeholder="O describe tu propio estilo…" value={prompt} onChangeText={setPrompt} />
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -196,35 +186,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  imagePickerText: { color: colors.textMuted, fontWeight: '600' },
+  imagePickerText: { ...type.caption, color: colors.textMuted },
   image: { width: '100%', height: '100%', borderRadius: radius.xl },
   presetRow: { gap: spacing.sm },
-  presetPill: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
-  },
-  presetPillActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  presetText: { color: colors.textMuted, ...type.caption },
-  presetTextActive: { color: colors.accent },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    color: colors.text,
-  },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  error: { ...type.caption, color: colors.danger },
   resultCard: {
     height: 220,
     borderRadius: radius.xl,
     borderWidth: 1.5,
     borderColor: colors.accent,
     overflow: 'hidden',
-    ...shadow.glow,
+    ...shadow.floating,
   },
 });

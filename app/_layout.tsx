@@ -3,6 +3,18 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import * as Linking from 'expo-linking';
+import {
+  useFonts,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
+import {
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 import { useAuthStore } from '../src/state/authStore';
 import { supabase } from '../src/lib/supabase';
 import { initMapbox } from '../src/lib/mapbox';
@@ -32,12 +44,21 @@ function useAuthDeepLinks() {
 
 export default function RootLayout() {
   const { session, profile, initializing } = useAuthStore();
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
   useAuthDeepLinks();
 
-  if (initializing) {
+  if (initializing || !fontsLoaded) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0D12' }}>
-        <ActivityIndicator color="#fff" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.text} />
       </View>
     );
   }

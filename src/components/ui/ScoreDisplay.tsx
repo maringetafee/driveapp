@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radius, spacing, type } from '../../theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../theme/colors';
 import { scoreTone } from '../../utils/scoreTone';
 
 type Size = 'hero' | 'display' | 'pill';
@@ -83,5 +83,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
-  pillText: { fontSize: 12, fontWeight: '800' },
+  pillText: { fontFamily: fonts.numeralBold, fontSize: 13 },
 });

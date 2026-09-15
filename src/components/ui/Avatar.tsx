@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme/colors';
+import { colors, fonts } from '../../theme/colors';
 
 const PALETTE = [colors.accent, colors.accentAlt, colors.gold, colors.bronze, colors.silver];
 
@@ -37,5 +37,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
   },
-  initial: { fontWeight: '800' },
+  initial: { fontFamily: fonts.numeralBold },
 });

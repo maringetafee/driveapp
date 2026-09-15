@@ -22,5 +22,5 @@ export default function SectionHeader({ title, action }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { ...type.subheading, color: colors.text },
-  action: { ...type.caption, color: colors.accentAlt, fontWeight: '700' },
+  action: { ...type.caption, color: colors.accentAlt },
 });

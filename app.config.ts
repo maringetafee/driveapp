@@ -49,6 +49,15 @@ const config: ExpoConfig = {
     'expo-status-bar',
     'expo-image',
     'expo-secure-store',
+    'expo-font',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        imageWidth: 160,
+        backgroundColor: '#0B0A0D',
+      },
+    ],
     [
       'expo-location',
       {

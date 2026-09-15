@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
@@ -144,7 +145,7 @@ export default function FeedScreen() {
             <View style={styles.headerActions}>
               <NotificationBell />
               <Pressable style={styles.searchButton} onPress={() => router.push('/search')} hitSlop={8}>
-                <Text style={styles.searchButtonText}>🔍</Text>
+                <Ionicons name="search" size={18} color={colors.text} />
               </Pressable>
             </View>
           </View>
@@ -200,13 +201,17 @@ export default function FeedScreen() {
 
               <View style={styles.actionsRow}>
                 <ScaledPressable style={styles.actionButton} onPress={() => onToggleLike(item.id, liked)}>
-                  <Text style={[styles.actionIcon, liked && styles.actionIconActive]}>{liked ? '♥' : '♡'}</Text>
+                  <Ionicons
+                    name={liked ? 'heart' : 'heart-outline'}
+                    size={17}
+                    color={liked ? colors.danger : colors.textMuted}
+                  />
                   <Text style={[styles.actionCount, liked && styles.actionIconActive]}>
                     {item.trip_likes?.[0]?.count ?? 0}
                   </Text>
                 </ScaledPressable>
                 <Pressable style={styles.actionButton} onPress={() => router.push(`/trip/${item.id}`)}>
-                  <Text style={styles.actionIcon}>💬</Text>
+                  <Ionicons name="chatbubble-outline" size={16} color={colors.textMuted} />
                   <Text style={styles.actionCount}>{item.trip_comments?.[0]?.count ?? 0}</Text>
                 </Pressable>
               </View>
@@ -234,7 +239,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchButtonText: { fontSize: 17 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -249,7 +253,6 @@ const styles = StyleSheet.create({
   badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   actionsRow: { flexDirection: 'row', gap: spacing.xl },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionIcon: { color: colors.textMuted, fontSize: 17 },
   actionIconActive: { color: colors.danger },
   actionCount: { color: colors.textMuted, ...type.caption },
 });

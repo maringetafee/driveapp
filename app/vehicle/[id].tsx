@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { supabase } from '../../src/lib/supabase';
@@ -9,6 +9,7 @@ import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Vehicle } from '../../src/types/database';
 
 interface VehicleStats {
@@ -78,8 +79,8 @@ export default function VehicleDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.text} />
+        <View style={styles.content}>
+          <SkeletonList count={1} />
         </View>
       </SafeAreaView>
     );
@@ -148,8 +149,14 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg },
   image: { width: '100%', height: 200, borderRadius: radius.xl, backgroundColor: colors.surface },
-  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  imagePlaceholderText: { color: colors.textMuted },
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+  },
+  imagePlaceholderText: { ...type.caption, color: colors.textMuted },
   title: { ...type.heading, color: colors.text, fontSize: 24 },
   defaultBadge: {
     alignSelf: 'flex-start',

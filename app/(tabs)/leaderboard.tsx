@@ -1,16 +1,18 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import Avatar from '../../src/components/ui/Avatar';
+import Chip from '../../src/components/ui/Chip';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 import EmptyState from '../../src/components/ui/EmptyState';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 
-const MEDAL_COLOR: Record<number, string> = { 1: colors.gold, 2: colors.silver, 3: colors.bronze };
 import type { LeaderboardMetric, LeaderboardPeriod, LeaderboardScope } from '../../src/types/database';
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
@@ -162,12 +164,25 @@ export default function LeaderboardScreen() {
         <View style={styles.topRow}>
           <Text style={styles.screenTitle}>Ranking</Text>
           <Pressable style={styles.groupsButton} onPress={() => router.push('/groups')} hitSlop={8}>
-            <Text style={styles.groupsButtonText}>👥 Grupos</Text>
+            <Ionicons name="people" size={15} color={colors.text} />
+            <Text style={styles.groupsButtonText}>Grupos</Text>
           </Pressable>
         </View>
-        <FilterRow options={METRICS} value={metric} onChange={setMetric} />
-        <FilterRow options={SCOPES} value={scope} onChange={setScope} />
-        <FilterRow options={PERIODS} value={period} onChange={setPeriod} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {METRICS.map((opt) => (
+            <Chip key={opt.key} label={opt.label} active={metric === opt.key} onPress={() => setMetric(opt.key)} />
+          ))}
+        </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {SCOPES.map((opt) => (
+            <Chip key={opt.key} label={opt.label} active={scope === opt.key} onPress={() => setScope(opt.key)} />
+          ))}
+        </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {PERIODS.map((opt) => (
+            <Chip key={opt.key} label={opt.label} active={period === opt.key} onPress={() => setPeriod(opt.key)} />
+          ))}
+        </ScrollView>
       </View>
 
       {records && records.length > 0 && (
@@ -194,8 +209,8 @@ export default function LeaderboardScreen() {
           />
         </View>
       ) : loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.text} />
+        <View style={styles.list}>
+          <SkeletonList />
         </View>
       ) : rows.length === 0 ? (
         <View style={styles.centered}>
@@ -251,65 +266,41 @@ function Podium({ rows, formatValue }: { rows: Row[]; formatValue: (r: Row) => s
 
   return (
     <View style={styles.podiumRow}>
-      <PodiumSlot row={second} color={colors.silver} avatarSize={40} formatValue={formatValue} />
-      <PodiumSlot row={first} color={colors.gold} avatarSize={56} emphasis formatValue={formatValue} />
-      <PodiumSlot row={third} color={colors.bronze} avatarSize={40} formatValue={formatValue} />
+      <PodiumSlot row={second} place={2} color={colors.silver} avatarSize={44} riserHeight={52} formatValue={formatValue} />
+      <PodiumSlot row={first} place={1} color={colors.gold} avatarSize={64} riserHeight={76} formatValue={formatValue} />
+      <PodiumSlot row={third} place={3} color={colors.bronze} avatarSize={44} riserHeight={40} formatValue={formatValue} />
     </View>
   );
 }
 
 function PodiumSlot({
   row,
+  place,
   color,
   avatarSize,
-  emphasis,
+  riserHeight,
   formatValue,
 }: {
   row?: Row;
+  place: 1 | 2 | 3;
   color: string;
   avatarSize: number;
-  emphasis?: boolean;
+  riserHeight: number;
   formatValue: (r: Row) => string;
 }) {
   if (!row) return <View style={styles.podiumSlot} />;
   return (
-    <Pressable
-      style={[styles.podiumSlot, emphasis && styles.podiumSlotEmphasis]}
-      onPress={() => router.push(`/u/${row.username}`)}
-    >
-      <View style={[styles.podiumRankBadge, { backgroundColor: color }]}>
-        <Text style={styles.podiumRankText}>{row.rank}</Text>
-      </View>
+    <Pressable style={styles.podiumSlot} onPress={() => router.push(`/u/${row.username}`)}>
+      {place === 1 && <Ionicons name="trophy" size={22} color={color} style={styles.podiumTrophy} />}
       <Avatar username={row.username} size={avatarSize} />
       <Text style={styles.podiumUsername} numberOfLines={1}>
         @{row.username}
       </Text>
       <Text style={[styles.podiumValue, { color }]}>{formatValue(row)}</Text>
+      <View style={[styles.podiumRiser, { height: riserHeight, backgroundColor: color }]}>
+        <Text style={styles.podiumRiserRank}>{place}</Text>
+      </View>
     </Pressable>
-  );
-}
-
-function FilterRow<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { key: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-      {options.map((opt) => (
-        <Pressable
-          key={opt.key}
-          style={[styles.pill, value === opt.key && styles.pillActive]}
-          onPress={() => onChange(opt.key)}
-        >
-          <Text style={[styles.pillText, value === opt.key && styles.pillTextActive]}>{opt.label}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
   );
 }
 
@@ -324,6 +315,9 @@ const styles = StyleSheet.create({
   },
   screenTitle: { ...type.title, color: colors.text },
   groupsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -331,18 +325,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: spacing.md,
   },
-  groupsButtonText: { color: colors.text, ...type.caption, fontWeight: '700' },
+  groupsButtonText: { ...type.caption, fontFamily: fonts.bodyBold, color: colors.text },
   filterRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
-  pill: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
-  },
-  pillActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  pillText: { color: colors.textMuted, ...type.caption },
-  pillTextActive: { color: colors.accent },
   recordsRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
   recordCard: {
     width: 128,
@@ -354,7 +338,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recordEmoji: { fontSize: 18, marginBottom: 4 },
-  recordValue: { ...type.subheading, color: colors.text },
+  recordValue: { ...type.subheading, fontFamily: fonts.numeralBold, color: colors.text },
   recordLabel: { ...type.caption, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
   recordUsername: { ...type.label, color: colors.accent, marginTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
@@ -366,12 +350,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  podiumSlot: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: spacing.md },
-  podiumSlotEmphasis: { paddingBottom: spacing.xl },
-  podiumRankBadge: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  podiumRankText: { fontSize: 11, fontWeight: '800', color: '#04140D' },
-  podiumUsername: { ...type.caption, color: colors.text, fontWeight: '700', maxWidth: 92 },
-  podiumValue: { fontSize: 15, fontWeight: '800' },
+  podiumSlot: { flex: 1, alignItems: 'center', gap: 6 },
+  podiumTrophy: { marginBottom: 2 },
+  podiumUsername: { ...type.caption, color: colors.text, maxWidth: 92 },
+  podiumValue: { fontFamily: fonts.numeralBold, fontSize: 16, color: colors.text, marginBottom: spacing.sm },
+  podiumRiser: {
+    width: '100%',
+    borderTopLeftRadius: radius.sm,
+    borderTopRightRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 6,
+  },
+  podiumRiserRank: { fontFamily: fonts.numeralBold, fontSize: 18, color: colors.onAccent },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,8 +376,8 @@ const styles = StyleSheet.create({
   rowPressed: { backgroundColor: colors.surfaceAlt },
   rowMe: { borderColor: colors.accent, borderWidth: 1.5 },
   rowMePinned: { marginTop: spacing.sm },
-  rank: { color: colors.textMuted, fontWeight: '700', width: 28, textAlign: 'center' },
-  username: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
-  value: { color: colors.accent, fontWeight: '800', fontSize: 15 },
-  error: { color: colors.danger, textAlign: 'center', paddingBottom: 12, fontSize: 12 },
+  rank: { fontFamily: fonts.numeralSemiBold, fontSize: 15, color: colors.textMuted, width: 28, textAlign: 'center' },
+  username: { ...type.body, fontFamily: fonts.bodySemiBold, color: colors.text, flex: 1 },
+  value: { fontFamily: fonts.numeralBold, fontSize: 15, color: colors.accent },
+  error: { ...type.caption, color: colors.danger, textAlign: 'center', paddingBottom: 12 },
 });
