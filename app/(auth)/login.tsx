@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors } from '../../src/theme/colors';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
-import { authStyles as styles } from './authStyles';
+import { authStyles as styles } from '../../src/theme/authStyles';
 
 export default function LoginScreen() {
   const signIn = useAuthStore((s) => s.signIn);

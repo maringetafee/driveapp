@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { supabase } from '../lib/supabase';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
+import { isTripTooShort } from '../utils/tripRules';
 
 export const AUTO_TRIP_TASK = 'roadly-auto-trip';
 const STATE_KEY = 'roadly-auto-trip-state';
@@ -53,6 +54,7 @@ async function saveTrip(state: AutoTripState) {
     const speedKmh = state.points[i].speedMs ? msToKmh(state.points[i].speedMs as number) : 0;
     maxSpeedKmh = Math.max(maxSpeedKmh, speedKmh);
   }
+  if (isTripTooShort(distanceMeters, durationSeconds)) return;
   const avgSpeedKmh = distanceMeters / 1000 / (durationSeconds / 3600);
 
   await supabase.from('trips').insert({

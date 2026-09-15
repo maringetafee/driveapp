@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import Avatar from '../../src/components/ui/Avatar';
 import EmptyState from '../../src/components/ui/EmptyState';
 import type { Group, LeaderboardMetric, LeaderboardPeriod } from '../../src/types/database';
@@ -14,6 +15,7 @@ const METRICS: { key: LeaderboardMetric; label: string }[] = [
   { key: 'driving_score', label: 'Driving score' },
   { key: 'total_distance', label: 'Distancia' },
   { key: 'max_speed', label: 'Vel. máxima' },
+  { key: 'zero_to_100', label: '0-100 km/h' },
   { key: 'trip_count', label: 'Nº trayectos' },
 ];
 
@@ -91,6 +93,7 @@ export default function GroupDetailScreen() {
   const formatValue = (row: Row) => {
     if (metric === 'max_speed') return formatSpeed(row.value, units);
     if (metric === 'total_distance') return formatDistance(row.value, units);
+    if (metric === 'zero_to_100') return formatLaunchTime(row.value);
     if (metric === 'driving_score') return row.value.toFixed(0);
     return String(Math.round(row.value));
   };
@@ -132,7 +135,7 @@ export default function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           {groupLoading ? (
             <ActivityIndicator color={colors.text} />
@@ -147,7 +150,7 @@ export default function GroupDetailScreen() {
   const isOwner = session?.user.id === group.owner_id;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <Text style={styles.title}>{group.name}</Text>
         <Text style={styles.subtitle}>{memberCount} miembro{memberCount === 1 ? '' : 's'}</Text>

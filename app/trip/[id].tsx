@@ -19,6 +19,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { scoreTone } from '../../src/utils/scoreTone';
 import { accelerationScore, brakingScore, corneringScore } from '../../src/utils/subScores';
 import TripRouteMap from '../../src/components/TripRouteMap';
@@ -176,7 +177,7 @@ export default function TripSummaryScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.text} />
         </View>
@@ -186,7 +187,7 @@ export default function TripSummaryScreen() {
 
   if (!trip) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <Text style={styles.title}>No se encontró el trayecto.</Text>
         </View>
@@ -197,7 +198,7 @@ export default function TripSummaryScreen() {
   const isOwnTrip = myUserId === trip.user_id;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
           <Text style={styles.title}>{isOwnTrip ? 'Trayecto completado' : `Trayecto de @${owner?.username}`}</Text>
@@ -216,6 +217,18 @@ export default function TripSummaryScreen() {
               { label: 'Vel. máxima', value: formatSpeed(trip.max_speed_kmh ?? 0, units) },
             ]}
           />
+
+          {(trip.zero_to_50_s != null || trip.zero_to_100_s != null) && (
+            <View style={styles.subScores}>
+              <SectionHeader title="Aceleración" />
+              <StatRow
+                items={[
+                  { label: '0-50 km/h', value: formatLaunchTime(trip.zero_to_50_s) },
+                  { label: '0-100 km/h', value: formatLaunchTime(trip.zero_to_100_s) },
+                ]}
+              />
+            </View>
+          )}
 
           {isOwnTrip && (
             <View style={styles.tagRow}>

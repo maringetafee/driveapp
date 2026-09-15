@@ -52,7 +52,7 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-          <Text style={styles.eyebrow}>PASO 1 DE 1</Text>
+          <Text style={styles.eyebrow}>ÚLTIMO PASO</Text>
           <Text style={styles.title}>Tu primer coche</Text>
           <Text style={styles.subtitle}>
             Lo usaremos para personalizar tus estadísticas. Podrás añadir más coches luego.

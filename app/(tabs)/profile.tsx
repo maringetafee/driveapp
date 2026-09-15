@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
@@ -8,7 +8,6 @@ import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
 import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import type { Vehicle } from '../../src/types/database';
-import { disableAutoTracking, enableAutoTracking, isAutoTrackingEnabled } from '../../src/background/autoTripTask';
 import BadgesRow from '../../src/components/BadgesRow';
 import BestMarks from '../../src/components/BestMarks';
 import ScoreTrendChart from '../../src/components/ScoreTrendChart';
@@ -20,40 +19,16 @@ import SectionHeader from '../../src/components/ui/SectionHeader';
 export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const profile = useAuthStore((s) => s.profile);
-  const signOut = useAuthStore((s) => s.signOut);
-  const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const units = profile?.units ?? 'kmh';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [stats, setStats] = useState<AggregateTripStats | null>(null);
   const [scoreTrend, setScoreTrend] = useState<number[]>([]);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [autoTracking, setAutoTracking] = useState(false);
-  const [autoTrackingError, setAutoTrackingError] = useState<string | null>(null);
-  const [privacyBusy, setPrivacyBusy] = useState(false);
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [newMake, setNewMake] = useState('');
   const [newModel, setNewModel] = useState('');
   const [savingVehicle, setSavingVehicle] = useState(false);
-
-  useEffect(() => {
-    isAutoTrackingEnabled().then(setAutoTracking);
-  }, []);
-
-  const onToggleAutoTracking = async (value: boolean) => {
-    setAutoTrackingError(null);
-    if (value) {
-      const result = await enableAutoTracking();
-      if (!result.ok) {
-        setAutoTrackingError(result.error ?? 'No se pudo activar.');
-        return;
-      }
-      setAutoTracking(true);
-    } else {
-      await disableAutoTracking();
-      setAutoTracking(false);
-    }
-  };
 
   const loadVehicles = useCallback(() => {
     if (!session) return;
@@ -106,14 +81,6 @@ export default function ProfileScreen() {
     }, [session])
   );
 
-  const onTogglePrivacy = async (value: boolean) => {
-    if (!session) return;
-    setPrivacyBusy(true);
-    await supabase.from('profiles').update({ is_private: value }).eq('id', session.user.id);
-    await refreshProfile();
-    setPrivacyBusy(false);
-  };
-
   const onAddVehicle = async () => {
     if (!session || !newMake.trim() || !newModel.trim()) return;
     setSavingVehicle(true);
@@ -142,21 +109,31 @@ export default function ProfileScreen() {
             <View style={styles.headerRow}>
               <Avatar username={profile?.username ?? '?'} size={64} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.username}>{profile?.username ?? '—'}</Text>
+                <Text style={styles.username} numberOfLines={1}>
+                  {profile?.username ?? '—'}
+                </Text>
                 {(profile?.city || profile?.country) && (
                   <Text style={styles.location}>{[profile?.city, profile?.country].filter(Boolean).join(', ')}</Text>
                 )}
                 {profile?.username && (
-                  <Pressable onPress={() => router.push(`/u/${profile.username}`)}>
+                  <Pressable onPress={() => router.push(`/u/${profile.username}`)} hitSlop={6}>
                     <Text style={styles.viewPublicLink}>Ver perfil público ›</Text>
                   </Pressable>
                 )}
               </View>
+              <Pressable
+                style={({ pressed }) => [styles.settingsButton, pressed && styles.cardPressed]}
+                onPress={() => router.push('/settings')}
+                accessibilityLabel="Ajustes"
+                hitSlop={6}
+              >
+                <Text style={styles.settingsIcon}>⚙️</Text>
+              </Pressable>
             </View>
 
             <View style={styles.followRow}>
               <Text style={styles.followCount}>
-                <Text style={styles.followNumber}>{followersCount}</Text> seguidores
+                <Text style={styles.followNumber}>{followersCount}</Text> {followersCount === 1 ? 'seguidor' : 'seguidores'}
               </Text>
               <Text style={styles.followCount}>
                 <Text style={styles.followNumber}>{followingCount}</Text> siguiendo
@@ -182,46 +159,12 @@ export default function ProfileScreen() {
 
             <ScoreTrendChart scores={scoreTrend} />
 
-            <View style={styles.autoTrackRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.autoTrackTitle}>Detección automática</Text>
-                <Text style={styles.autoTrackSubtitle}>
-                  Registra trayectos en segundo plano sin pulsar iniciar/terminar.
-                </Text>
-              </View>
-              <Switch
-                value={autoTracking}
-                onValueChange={onToggleAutoTracking}
-                trackColor={{ false: colors.border, true: colors.accent }}
-                thumbColor={colors.text}
-              />
-            </View>
-            {autoTrackingError && <Text style={styles.error}>{autoTrackingError}</Text>}
-
-            <View style={styles.autoTrackRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.autoTrackTitle}>Cuenta privada</Text>
-                <Text style={styles.autoTrackSubtitle}>
-                  Solo tus seguidores aceptados verán tus trayectos, coches y estadísticas.
-                </Text>
-              </View>
-              <Switch
-                value={profile?.is_private ?? false}
-                onValueChange={onTogglePrivacy}
-                disabled={privacyBusy}
-                trackColor={{ false: colors.border, true: colors.accent }}
-                thumbColor={colors.text}
-              />
-            </View>
-
             {session && <BadgesRow userId={session.user.id} stats={stats} />}
 
-            <View style={styles.garageHeaderRow}>
-              <SectionHeader
-                title="Garaje"
-                action={{ label: addingVehicle ? 'Cancelar' : '+ Añadir coche', onPress: () => setAddingVehicle((v) => !v) }}
-              />
-            </View>
+            <SectionHeader
+              title="Garaje"
+              action={{ label: addingVehicle ? 'Cancelar' : '+ Añadir coche', onPress: () => setAddingVehicle((v) => !v) }}
+            />
 
             {addingVehicle && (
               <View style={styles.addVehicleForm}>
@@ -260,12 +203,9 @@ export default function ProfileScreen() {
               {item.make} {item.model}
               {item.year ? ` · ${item.year}` : ''}
             </Text>
-            {item.is_default && <Text style={styles.defaultBadge}>Principal</Text>}
+            {item.is_default ? <Text style={styles.defaultBadge}>Principal</Text> : <Text style={styles.chevron}>›</Text>}
           </Pressable>
         )}
-        ListFooterComponent={
-          <PrimaryButton title="Cerrar sesión" onPress={() => signOut()} variant="ghost" style={{ marginTop: spacing.xl }} />
-        }
       />
     </SafeAreaView>
   );
@@ -273,16 +213,27 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: spacing.lg, gap: spacing.md },
+  list: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
   headerBlock: { marginBottom: spacing.sm, gap: spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   username: { ...type.title, color: colors.text },
   location: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
   viewPublicLink: { color: colors.accentAlt, ...type.caption, fontWeight: '700', marginTop: 4 },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  settingsIcon: { fontSize: 18 },
   followRow: { flexDirection: 'row', gap: spacing.lg, flexWrap: 'wrap' },
   followCount: { color: colors.textMuted, fontSize: 13 },
   followNumber: { color: colors.text, fontWeight: '700' },
-  garageHeaderRow: {},
   addVehicleForm: { gap: spacing.sm },
   input: {
     backgroundColor: colors.surface,
@@ -294,19 +245,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
-  autoTrackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  autoTrackTitle: { ...type.subheading, color: colors.text },
-  autoTrackSubtitle: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 20 },
   card: {
     backgroundColor: colors.surface,
@@ -324,4 +262,5 @@ const styles = StyleSheet.create({
   vehicleDotActive: { backgroundColor: colors.accent },
   vehicleName: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
   defaultBadge: { color: colors.accent, fontSize: 12, fontWeight: '800' },
+  chevron: { color: colors.textFaint, fontSize: 22, fontWeight: '600' },
 });

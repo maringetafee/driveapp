@@ -1,13 +1,13 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'roadly',
+  name: 'Roadly',
   slug: 'driverank',
   scheme: 'roadly',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'automatic',
+  userInterfaceStyle: 'dark',
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'es.makemyweb.roadly',
@@ -27,7 +27,7 @@ const config: ExpoConfig = {
   android: {
     package: 'es.makemyweb.roadly',
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#4FE3A1',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',

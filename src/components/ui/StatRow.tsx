@@ -21,7 +21,14 @@ export default function StatRow({ items, boxed = true, style }: Props) {
         <View key={item.label} style={styles.itemWrap}>
           {i > 0 && <View style={styles.divider} />}
           <View style={styles.item}>
-            <Text style={[styles.value, item.tone && { color: item.tone }]}>{item.value}</Text>
+            <Text
+              style={[styles.value, item.tone && { color: item.tone }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {item.value}
+            </Text>
             <Text style={styles.label}>{item.label}</Text>
           </View>
         </View>

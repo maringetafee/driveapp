@@ -15,36 +15,81 @@ export default function FriendCompareCard({
   units: Units;
 }) {
   const diff = friend.distanceMeters - myDistanceMeters;
-  const winning = diff <= 0;
+  const max = Math.max(friend.distanceMeters, myDistanceMeters, 1);
+  const title =
+    Math.abs(diff) < 1
+      ? `Empate con @${friend.username}`
+      : diff < 0
+        ? `Vas por delante de @${friend.username}`
+        : `@${friend.username} te saca ${formatDistance(diff, units)}`;
 
   return (
-    <Pressable style={styles.card} onPress={() => router.push(`/u/${friend.username}`)}>
-      <Text style={styles.emoji}>{winning ? '🏆' : '🎯'}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title}>
-          {winning ? `Vas por delante de @${friend.username}` : `@${friend.username} te lleva ventaja`}
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => router.push(`/u/${friend.username}`)}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title} numberOfLines={1}>
+          {diff < 0 ? '🏆 ' : '🎯 '}
+          {title}
         </Text>
-        <Text style={styles.subtitle}>
-          {formatDistance(myDistanceMeters, units)} tú · {formatDistance(friend.distanceMeters, units)} @{friend.username} esta semana
-        </Text>
+        <Text style={styles.caption}>Esta semana</Text>
       </View>
+      <Bar label="Tú" value={myDistanceMeters} max={max} units={units} highlight />
+      <Bar label={`@${friend.username}`} value={friend.distanceMeters} max={max} units={units} />
     </Pressable>
+  );
+}
+
+function Bar({
+  label,
+  value,
+  max,
+  units,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  units: Units;
+  highlight?: boolean;
+}) {
+  return (
+    <View style={styles.barRow}>
+      <Text style={[styles.barLabel, highlight && styles.barLabelMe]} numberOfLines={1}>
+        {label}
+      </Text>
+      <View style={styles.track}>
+        <View
+          style={[
+            styles.fill,
+            { width: `${Math.max(3, (value / max) * 100)}%`, backgroundColor: highlight ? colors.accent : colors.borderStrong },
+          ]}
+        />
+      </View>
+      <Text style={styles.barValue}>{formatDistance(value, units)}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
+    gap: spacing.sm,
   },
-  emoji: { fontSize: 24 },
-  title: { ...type.body, color: colors.text, fontWeight: '700' },
-  subtitle: { ...type.caption, color: colors.textMuted, marginTop: 2 },
+  cardPressed: { backgroundColor: colors.surfaceAlt },
+  header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm, marginBottom: 2 },
+  title: { ...type.body, color: colors.text, fontWeight: '700', flexShrink: 1 },
+  caption: { ...type.caption, color: colors.textFaint },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  barLabel: { ...type.caption, color: colors.textMuted, width: 96 },
+  barLabelMe: { color: colors.text },
+  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+  barValue: { ...type.caption, color: colors.text, width: 64, textAlign: 'right' },
 });

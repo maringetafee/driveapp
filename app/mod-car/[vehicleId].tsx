@@ -99,7 +99,7 @@ export default function ModCarScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>✨ IA · MOD CAR</Text>
         <Text style={styles.title}>Reimagina tu coche</Text>

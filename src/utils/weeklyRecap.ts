@@ -7,22 +7,36 @@ export interface WeeklyRecap {
   prevDistanceMeters: number;
 }
 
-const DAY_MS = 86400000;
+/** Monday 00:00 local — the same window the "Semana" leaderboard uses. */
+export function startOfWeek(now = new Date()): Date {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
 
-/** Rolling 7-day recap (not calendar week) so it's meaningful any day you open the app. */
 export async function fetchWeeklyRecap(userId: string): Promise<WeeklyRecap> {
-  const now = Date.now();
-  const weekAgo = new Date(now - 7 * DAY_MS).toISOString();
-  const twoWeeksAgo = new Date(now - 14 * DAY_MS).toISOString();
+  const now = new Date();
+  const weekStart = startOfWeek(now);
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+  // Compare against the same elapsed slice of last week, so Monday morning
+  // isn't measured against a full previous week.
+  const prevSameMoment = new Date(now);
+  prevSameMoment.setDate(prevSameMoment.getDate() - 7);
 
   const [{ data: thisWeek }, { data: lastWeek }] = await Promise.all([
-    supabase.from('trips').select('distance_meters, driving_score').eq('user_id', userId).gte('started_at', weekAgo),
+    supabase
+      .from('trips')
+      .select('distance_meters, driving_score')
+      .eq('user_id', userId)
+      .gte('started_at', weekStart.toISOString()),
     supabase
       .from('trips')
       .select('distance_meters')
       .eq('user_id', userId)
-      .gte('started_at', twoWeeksAgo)
-      .lt('started_at', weekAgo),
+      .gte('started_at', prevWeekStart.toISOString())
+      .lt('started_at', prevSameMoment.toISOString()),
   ]);
 
   const trips = thisWeek ?? [];
@@ -43,10 +57,8 @@ export interface FriendComparison {
   distanceMeters: number;
 }
 
-/** Best friend by distance in the last 7 days, among accepted follows — used for a lightweight social nudge on Home. */
+/** Best friend by distance this week, among accepted follows — a lightweight social nudge on Home. */
 export async function fetchTopFriendThisWeek(userId: string): Promise<FriendComparison | null> {
-  const weekAgo = new Date(Date.now() - 7 * DAY_MS).toISOString();
-
   const { data: follows } = await supabase.from('follows').select('followed_id').eq('follower_id', userId).eq('status', 'accepted');
   const friendIds = (follows ?? []).map((f) => f.followed_id);
   if (friendIds.length === 0) return null;
@@ -55,7 +67,7 @@ export async function fetchTopFriendThisWeek(userId: string): Promise<FriendComp
     .from('trips')
     .select('user_id, distance_meters, profiles!trips_user_id_fkey(username)')
     .in('user_id', friendIds)
-    .gte('started_at', weekAgo);
+    .gte('started_at', startOfWeek().toISOString());
 
   const totals = new Map<string, { username: string; distance: number }>();
   for (const t of trips ?? []) {

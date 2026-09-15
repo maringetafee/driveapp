@@ -4,6 +4,7 @@ import { Accelerometer, Gyroscope } from 'expo-sensors';
 import type { LineString } from 'geojson';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
 import { computeDrivingScore, DrivingMetricsTracker } from '../utils/drivingMetrics';
+import { LaunchTimer } from '../utils/launchTimer';
 
 export interface TripSummary {
   startedAt: number;
@@ -18,6 +19,8 @@ export interface TripSummary {
   hardBrakes: number;
   sharpTurns: number;
   gForceSeries: { t: number; x: number; y: number; z: number }[];
+  zeroTo50Seconds: number | null;
+  zeroTo100Seconds: number | null;
 }
 
 interface TripState {
@@ -27,15 +30,23 @@ interface TripState {
   distanceMeters: number;
   currentSpeedKmh: number;
   maxSpeedKmh: number;
+  zeroTo50Seconds: number | null;
+  zeroTo100Seconds: number | null;
   error: string | null;
   start: () => Promise<void>;
   stop: () => TripSummary | null;
 }
 
+// Route points are only kept every few metres (what the GPS distance filter
+// used to do), but speed is read every second even when stopped so the
+// speedometer drops to 0 at a red light and launches can be timed.
+const MIN_POINT_SPACING_METERS = 3;
+
 let locationSubscription: Location.LocationSubscription | null = null;
 let accelSubscription: { remove: () => void } | null = null;
 let gyroSubscription: { remove: () => void } | null = null;
 const metrics = new DrivingMetricsTracker();
+const launch = new LaunchTimer();
 
 export const useTripStore = create<TripState>((set, get) => ({
   status: 'idle',
@@ -44,6 +55,8 @@ export const useTripStore = create<TripState>((set, get) => ({
   distanceMeters: 0,
   currentSpeedKmh: 0,
   maxSpeedKmh: 0,
+  zeroTo50Seconds: null,
+  zeroTo100Seconds: null,
   error: null,
 
   start: async () => {
@@ -55,6 +68,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
 
     metrics.reset();
+    launch.reset();
     set({
       status: 'tracking',
       points: [],
@@ -62,6 +76,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       distanceMeters: 0,
       currentSpeedKmh: 0,
       maxSpeedKmh: 0,
+      zeroTo50Seconds: null,
+      zeroTo100Seconds: null,
     });
 
     try {
@@ -69,7 +85,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         {
           accuracy: Location.Accuracy.BestForNavigation,
           timeInterval: 1000,
-          distanceInterval: 3,
+          distanceInterval: 0,
         },
         (location) => {
           const point: TripPoint = {
@@ -80,17 +96,20 @@ export const useTripStore = create<TripState>((set, get) => ({
           };
           const speedKmh = point.speedMs && point.speedMs > 0 ? msToKmh(point.speedMs) : 0;
           metrics.onSpeedSample(speedKmh, point.timestamp);
+          launch.onSpeedSample(speedKmh, point.timestamp);
 
           set((state) => {
-            const points = [...state.points, point];
             const prev = state.points[state.points.length - 1];
-            const addedDistance = prev ? haversineMeters(prev, point) : 0;
+            const step = prev ? haversineMeters(prev, point) : 0;
+            const keepPoint = !prev || step >= MIN_POINT_SPACING_METERS;
 
             return {
-              points,
-              distanceMeters: state.distanceMeters + addedDistance,
+              points: keepPoint ? [...state.points, point] : state.points,
+              distanceMeters: keepPoint ? state.distanceMeters + step : state.distanceMeters,
               currentSpeedKmh: speedKmh,
               maxSpeedKmh: Math.max(state.maxSpeedKmh, speedKmh),
+              zeroTo50Seconds: launch.best0to50,
+              zeroTo100Seconds: launch.best0to100,
             };
           });
         }
@@ -147,9 +166,20 @@ export const useTripStore = create<TripState>((set, get) => ({
         sharpTurns: metrics.sharpTurns,
         durationSeconds,
       }),
+      zeroTo50Seconds: launch.best0to50,
+      zeroTo100Seconds: launch.best0to100,
     };
 
-    set({ status: 'idle', points: [], startedAt: null, distanceMeters: 0, currentSpeedKmh: 0, maxSpeedKmh: 0 });
+    set({
+      status: 'idle',
+      points: [],
+      startedAt: null,
+      distanceMeters: 0,
+      currentSpeedKmh: 0,
+      maxSpeedKmh: 0,
+      zeroTo50Seconds: null,
+      zeroTo100Seconds: null,
+    });
     return summary;
   },
 }));

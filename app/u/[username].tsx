@@ -110,7 +110,7 @@ export default function PublicProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.text} />
         </View>
@@ -120,7 +120,7 @@ export default function PublicProfileScreen() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <EmptyState emoji="🔍" title={`No se encontró a @${username}`} />
         </View>
@@ -132,7 +132,7 @@ export default function PublicProfileScreen() {
   const contentLocked = profile.is_private && !isOwnProfile && !isFollowing;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.list}
@@ -154,7 +154,7 @@ export default function PublicProfileScreen() {
 
             <View style={styles.followRow}>
               <Text style={styles.followCount}>
-                <Text style={styles.followNumber}>{followersCount}</Text> seguidores
+                <Text style={styles.followNumber}>{followersCount}</Text> {followersCount === 1 ? 'seguidor' : 'seguidores'}
               </Text>
               <Text style={styles.followCount}>
                 <Text style={styles.followNumber}>{followingCount}</Text> siguiendo

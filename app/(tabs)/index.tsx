@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTripStore } from '../../src/state/tripStore';
 import { useAuthStore } from '../../src/state/authStore';
@@ -9,6 +9,8 @@ import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
 import { computeStreak, timeGreeting } from '../../src/utils/homeInsights';
 import { scoreTone } from '../../src/utils/scoreTone';
+import { finishTrip } from '../../src/utils/finishTrip';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { fetchTopFriendThisWeek, fetchWeeklyRecap, type FriendComparison, type WeeklyRecap } from '../../src/utils/weeklyRecap';
 import TripRouteMap from '../../src/components/TripRouteMap';
 import FriendCompareCard from '../../src/components/FriendCompareCard';
@@ -25,8 +27,17 @@ interface LastTrip {
 }
 
 export default function DriveScreen() {
-  const { status, points, currentSpeedKmh, maxSpeedKmh, distanceMeters, error, start, stop } =
-    useTripStore();
+  const {
+    status,
+    points,
+    currentSpeedKmh,
+    maxSpeedKmh,
+    distanceMeters,
+    zeroTo50Seconds,
+    zeroTo100Seconds,
+    error,
+    start,
+  } = useTripStore();
   const route = useMemo(() => (points.length > 1 ? toLineString(points) : null), [points]);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const username = useAuthStore((s) => s.profile?.username);
@@ -90,54 +101,11 @@ export default function DriveScreen() {
   }, [isTracking, pulse]);
 
   const onToggle = async () => {
-    if (isTracking) {
-      const summary = stop();
-      if (!summary || !session) return;
-
-      setSaving(true);
-
-      const { data: defaultVehicle } = await supabase
-        .from('vehicles')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .eq('is_default', true)
-        .maybeSingle();
-
-      const { data, error: insertError } = await supabase
-        .from('trips')
-        .insert({
-          user_id: session.user.id,
-          vehicle_id: defaultVehicle?.id ?? null,
-          started_at: new Date(summary.startedAt).toISOString(),
-          ended_at: new Date(summary.endedAt).toISOString(),
-          duration_seconds: summary.durationSeconds,
-          distance_meters: summary.distanceMeters,
-          avg_speed_kmh: summary.avgSpeedKmh,
-          max_speed_kmh: summary.maxSpeedKmh,
-          driving_score: summary.drivingScore,
-          route_geojson: summary.route,
-        })
-        .select('id')
-        .single();
-
-      if (!insertError && data) {
-        await supabase.from('trip_metrics').insert({
-          trip_id: data.id,
-          hard_accelerations: summary.hardAccelerations,
-          hard_brakes: summary.hardBrakes,
-          sharp_turns: summary.sharpTurns,
-          g_force_series: summary.gForceSeries,
-        });
-      }
-
-      setSaving(false);
-
-      if (!insertError && data) {
-        router.push(`/trip/${data.id}?justFinished=1`);
-      }
-    } else {
+    if (!isTracking) {
       await start();
+      return;
     }
+    if (session) await finishTrip(session.user.id, { onSavingChange: setSaving });
   };
 
   const pressIn = () =>
@@ -157,7 +125,7 @@ export default function DriveScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!isTracking && (
           <Text style={styles.greeting}>
             {timeGreeting()}{username ? `, ${username}` : ''}
@@ -183,6 +151,25 @@ export default function DriveScreen() {
 
         <StatRow items={statItems} style={styles.statRow} />
 
+        {isTracking && (zeroTo50Seconds != null || zeroTo100Seconds != null) && (
+          <View style={styles.launchRow}>
+            <View style={styles.launchPill}>
+              <Text style={styles.launchLabel}>🚀 0-50 km/h</Text>
+              <Text style={styles.launchValue}>{formatLaunchTime(zeroTo50Seconds)}</Text>
+            </View>
+            <View style={styles.launchPill}>
+              <Text style={styles.launchLabel}>🚀 0-100 km/h</Text>
+              <Text style={styles.launchValue}>{formatLaunchTime(zeroTo100Seconds)}</Text>
+            </View>
+          </View>
+        )}
+
+        {isTracking && zeroTo100Seconds == null && currentSpeedKmh < 2 && (
+          <Text style={styles.launchHint}>
+            Sal desde parado y mediremos tu 0-100. Hazlo solo donde sea seguro y legal.
+          </Text>
+        )}
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         <Animated.View style={{ transform: [{ scale }], width: '100%', alignItems: 'center' }}>
@@ -198,6 +185,19 @@ export default function DriveScreen() {
             </Text>
           </Pressable>
         </Animated.View>
+
+        <Pressable
+          style={({ pressed }) => [styles.navCard, pressed && { opacity: 0.75 }]}
+          onPress={() => router.push('/navigate')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.navEmoji}>🧭</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.navTitle}>Navegar</Text>
+            <Text style={styles.navSubtitle}>Rutas con avisos de radares fijos y de tramo</Text>
+          </View>
+          <Text style={styles.navChevron}>›</Text>
+        </Pressable>
 
         {!isTracking && (lastTrip || streak >= 2) && (
           <>
@@ -250,14 +250,21 @@ export default function DriveScreen() {
             </View>
           </>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.lg },
+  content: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
   greeting: { ...type.body, color: colors.textMuted, alignSelf: 'flex-start' },
   mapWrap: { width: '100%', borderRadius: radius.lg, overflow: 'hidden', ...shadow.card },
   dial: { alignItems: 'center', marginTop: spacing.md },
@@ -276,6 +283,19 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
   liveText: { ...type.label, color: colors.danger },
   statRow: { width: '100%' },
+  launchRow: { flexDirection: 'row', gap: spacing.sm, width: '100%' },
+  launchPill: {
+    flex: 1,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  launchLabel: { ...type.caption, color: colors.textMuted },
+  launchValue: { ...type.heading, color: colors.accent },
+  launchHint: { ...type.caption, color: colors.textFaint, textAlign: 'center', fontWeight: '500' },
   error: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   button: {
     backgroundColor: colors.accent,
@@ -286,6 +306,22 @@ const styles = StyleSheet.create({
   },
   buttonStop: { backgroundColor: colors.danger, shadowColor: colors.danger },
   buttonText: { color: '#04140D', fontWeight: '800', fontSize: 17, letterSpacing: 0.2 },
+  navCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  navEmoji: { fontSize: 24 },
+  navTitle: { ...type.subheading, color: colors.text },
+  navSubtitle: { ...type.caption, color: colors.textMuted, fontWeight: '500' },
+  navChevron: { color: colors.textFaint, fontSize: 26, fontWeight: '600' },
   fullDivider: { width: '100%' },
   insightsBlock: { width: '100%', gap: spacing.lg },
   lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },

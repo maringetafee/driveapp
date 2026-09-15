@@ -73,7 +73,7 @@ export default function GroupsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.list}

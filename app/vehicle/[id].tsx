@@ -77,7 +77,7 @@ export default function VehicleDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.text} />
         </View>
@@ -87,7 +87,7 @@ export default function VehicleDetailScreen() {
 
   if (!vehicle) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.centered}>
           <Text style={styles.title}>No se encontró el vehículo.</Text>
         </View>
@@ -96,7 +96,7 @@ export default function VehicleDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
         {vehicle.image_url ? (
           <Image source={{ uri: vehicle.image_url }} style={styles.image} />
