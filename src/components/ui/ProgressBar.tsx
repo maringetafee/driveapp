@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../../theme/colors';
+import { colors, fonts, radius, type } from '../../theme/colors';
 
 interface Props {
   label: string;
@@ -43,8 +43,8 @@ export default function ProgressBar({ label, value, tone, suffix = '' }: Props) 
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  label: { ...type.body, color: colors.textMuted, fontWeight: '600' },
-  value: { ...type.subheading },
+  label: { ...type.body, fontFamily: fonts.bodySemiBold, color: colors.textMuted },
+  value: { ...type.subheading, fontFamily: fonts.numeralBold },
   track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: radius.pill },
 });

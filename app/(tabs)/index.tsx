@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTripStore } from '../../src/state/tripStore';
 import { useAuthStore } from '../../src/state/authStore';
 import { supabase } from '../../src/lib/supabase';
-import { colors, radius, shadow, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
 import { computeStreak, timeGreeting } from '../../src/utils/homeInsights';
 import { scoreTone } from '../../src/utils/scoreTone';
@@ -180,7 +181,7 @@ export default function DriveScreen() {
             disabled={status === 'requesting' || saving}
             style={[styles.button, isTracking && styles.buttonStop]}
           >
-            <Text style={styles.buttonText}>
+            <Text style={[styles.buttonText, isTracking && styles.buttonTextStop]}>
               {saving ? 'Guardando…' : isTracking ? 'Terminar trayecto' : 'Iniciar trayecto'}
             </Text>
           </Pressable>
@@ -191,12 +192,14 @@ export default function DriveScreen() {
           onPress={() => router.push('/navigate')}
           accessibilityRole="button"
         >
-          <Text style={styles.navEmoji}>🧭</Text>
+          <View style={styles.navIcon}>
+            <Ionicons name="navigate" size={20} color={colors.accentAlt} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.navTitle}>Navegar</Text>
             <Text style={styles.navSubtitle}>Rutas con avisos de radares fijos y de tramo</Text>
           </View>
-          <Text style={styles.navChevron}>›</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textFaint} />
         </Pressable>
 
         {!isTracking && (lastTrip || streak >= 2) && (
@@ -210,7 +213,7 @@ export default function DriveScreen() {
                     action={{ label: 'Ver historial', onPress: () => router.push('/history') }}
                   />
                   <Pressable
-                    style={({ pressed }) => [styles.lastTripRow, pressed && { opacity: 0.7 }]}
+                    style={({ pressed }) => [styles.lastTripCard, pressed && styles.lastTripCardPressed]}
                     onPress={() => router.push(`/trip/${lastTrip.id}`)}
                   >
                     <Text style={styles.lastTripDate}>
@@ -234,11 +237,14 @@ export default function DriveScreen() {
               )}
 
               {streak >= 2 && (
-                <View style={styles.streakRow}>
-                  <Text style={styles.streakEmoji}>🔥</Text>
-                  <Text style={styles.streakText}>
-                    <Text style={styles.streakNumber}>{streak}</Text> días seguidos conduciendo
-                  </Text>
+                <View style={styles.streakCard}>
+                  <View style={styles.streakIconWrap}>
+                    <Text style={styles.streakEmoji}>🔥</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.streakNumber}>{streak} días</Text>
+                    <Text style={styles.streakLabel}>seguidos conduciendo</Text>
+                  </View>
                 </View>
               )}
 
@@ -266,10 +272,17 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   greeting: { ...type.body, color: colors.textMuted, alignSelf: 'flex-start' },
-  mapWrap: { width: '100%', borderRadius: radius.lg, overflow: 'hidden', ...shadow.card },
+  mapWrap: { width: '100%' },
   dial: { alignItems: 'center', marginTop: spacing.md },
   speedLabel: { ...type.label, color: colors.textFaint },
-  speed: { color: colors.text, fontSize: 88, fontWeight: '800', letterSpacing: -3, marginTop: 4 },
+  speed: {
+    color: colors.text,
+    fontFamily: fonts.numeralBold,
+    fontSize: 88,
+    letterSpacing: -3,
+    marginTop: 4,
+    fontVariant: ['tabular-nums'],
+  },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,8 +308,8 @@ const styles = StyleSheet.create({
   },
   launchLabel: { ...type.caption, color: colors.textMuted },
   launchValue: { ...type.heading, color: colors.accent },
-  launchHint: { ...type.caption, color: colors.textFaint, textAlign: 'center', fontWeight: '500' },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  launchHint: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textFaint, textAlign: 'center' },
+  error: { ...type.caption, color: colors.danger, textAlign: 'center' },
   button: {
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
@@ -305,7 +318,8 @@ const styles = StyleSheet.create({
     ...shadow.glow,
   },
   buttonStop: { backgroundColor: colors.danger, shadowColor: colors.danger },
-  buttonText: { color: '#04140D', fontWeight: '800', fontSize: 17, letterSpacing: 0.2 },
+  buttonText: { fontFamily: fonts.bodyExtraBold, color: colors.onAccent, fontSize: 17, letterSpacing: 0.2 },
+  buttonTextStop: { color: colors.onDanger },
   navCard: {
     width: '100%',
     flexDirection: 'row',
@@ -318,19 +332,53 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  navEmoji: { fontSize: 24 },
+  navIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.accentAltSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   navTitle: { ...type.subheading, color: colors.text },
-  navSubtitle: { ...type.caption, color: colors.textMuted, fontWeight: '500' },
-  navChevron: { color: colors.textFaint, fontSize: 26, fontWeight: '600' },
+  navSubtitle: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted },
   fullDivider: { width: '100%' },
-  insightsBlock: { width: '100%', gap: spacing.lg },
-  lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
+  insightsBlock: { width: '100%', gap: spacing.md },
+  lastTripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  lastTripCardPressed: { backgroundColor: colors.surfaceAlt, borderColor: colors.borderStrong },
   lastTripDate: { ...type.caption, color: colors.textMuted, width: 56 },
-  lastTripDistance: { ...type.body, color: colors.text, fontWeight: '700', flex: 1 },
+  lastTripDistance: { ...type.body, fontFamily: fonts.numeralSemiBold, color: colors.text, flex: 1 },
   scorePill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  scoreText: { fontSize: 12, fontWeight: '800' },
-  streakRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  streakEmoji: { fontSize: 18 },
-  streakText: { ...type.body, color: colors.textMuted },
-  streakNumber: { color: colors.text, fontWeight: '800' },
+  scoreText: { fontFamily: fonts.numeralBold, fontSize: 13 },
+  streakCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  streakIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  streakEmoji: { fontSize: 22 },
+  streakNumber: { fontFamily: fonts.numeralBold, fontSize: 17, color: colors.text },
+  streakLabel: { ...type.caption, color: colors.textMuted, marginTop: 1 },
 });

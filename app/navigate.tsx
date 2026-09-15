@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Mapbox from '@rnmapbox/maps';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import cameraData from '../src/data/speedCameras.json';
@@ -23,7 +24,7 @@ import { fetchDirections, searchPlaces, type Place } from '../src/lib/mapboxApi'
 import { allowScreenOff, keepScreenOn, speak, stopSpeaking } from '../src/lib/voice';
 import { useAuthStore } from '../src/state/authStore';
 import { useTripStore } from '../src/state/tripStore';
-import { colors, radius, semantic, shadow, spacing, type } from '../src/theme/colors';
+import { colors, fonts, radius, semantic, shadow, spacing, type } from '../src/theme/colors';
 import { finishTrip } from '../src/utils/finishTrip';
 import {
   buildNavRoute,
@@ -85,6 +86,10 @@ const CAMERA_FEATURES: FeatureCollection<Point> = {
 };
 
 const RADAR_RED = '#E5322D';
+// La ruta va en el azul secundario: el ámbar de marca se confundiría con el dorado
+// de los tramos y el rojo de los radares.
+const ROUTE_COLOR = colors.accentAlt;
+const ROUTE_CASING = '#0D2350';
 const MADRID: [number, number] = [-3.7038, 40.4168];
 // El logo y la atribución de Mapbox (obligatorios) van justo encima del panel inferior.
 const MAP_LOGO_CLEARANCE = 44;
@@ -512,12 +517,12 @@ export default function NavigateScreen() {
           <Mapbox.ShapeSource id="nav-route" shape={route.geometry}>
             <Mapbox.LineLayer
               id="nav-route-casing"
-              style={{ lineColor: '#0B3D2A', lineWidth: 12, lineCap: 'round', lineJoin: 'round' }}
+              style={{ lineColor: ROUTE_CASING, lineWidth: 12, lineCap: 'round', lineJoin: 'round' }}
             />
             <Mapbox.LineLayer
               id="nav-route-line"
               aboveLayerID="nav-route-casing"
-              style={{ lineColor: colors.accent, lineWidth: 7, lineCap: 'round', lineJoin: 'round' }}
+              style={{ lineColor: ROUTE_COLOR, lineWidth: 7, lineCap: 'round', lineJoin: 'round' }}
             />
           </Mapbox.ShapeSource>
         )}
@@ -583,7 +588,7 @@ export default function NavigateScreen() {
               accessibilityRole="button"
               accessibilityLabel="Volver"
             >
-              <Text style={styles.roundButtonText}>‹</Text>
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
             </Pressable>
             {phase === 'explore' ? (
               <TextInput
@@ -656,7 +661,8 @@ export default function NavigateScreen() {
           style={[styles.recenter, { bottom: panelHeight + MAP_LOGO_CLEARANCE }]}
           accessibilityRole="button"
         >
-          <Text style={styles.recenterText}>◎ Recentrar</Text>
+          <Ionicons name="locate" size={16} color={colors.text} />
+          <Text style={styles.recenterText}>Recentrar</Text>
         </Pressable>
       )}
 
@@ -741,7 +747,7 @@ export default function NavigateScreen() {
               accessibilityRole="button"
               accessibilityLabel="Terminar navegación"
             >
-              <Text style={styles.exitText}>✕</Text>
+              <Ionicons name="close" size={26} color={colors.danger} />
             </Pressable>
           </View>
         )}
@@ -762,19 +768,26 @@ const ARROW_ROTATION: Record<string, number> = {
 };
 
 function ManeuverIcon({ maneuver }: { maneuver: Maneuver }) {
-  if (maneuver.type === 'arrive') return <Text style={styles.maneuverGlyph}>🏁</Text>;
-  if (maneuver.type === 'roundabout' || maneuver.type === 'rotary' || maneuver.type === 'exit roundabout') {
+  if (maneuver.type === 'arrive') {
     return (
       <View style={styles.maneuverIcon}>
-        <Text style={styles.maneuverGlyph}>↺</Text>
-        {maneuver.exit != null && <Text style={styles.maneuverExit}>{maneuver.exit}ª</Text>}
+        <Ionicons name="flag" size={34} color={colors.text} />
+      </View>
+    );
+  }
+  if (maneuver.type === 'roundabout' || maneuver.type === 'rotary' || maneuver.type === 'exit roundabout') {
+    // En España las rotondas se recorren en sentido antihorario: se refleja el icono.
+    return (
+      <View style={styles.maneuverIcon}>
+        <Ionicons name="refresh" size={34} color={colors.text} style={{ transform: [{ scaleX: -1 }] }} />
+        {maneuver.exit != null && <Text style={styles.maneuverExit}>{maneuver.exit}ª salida</Text>}
       </View>
     );
   }
   const rotation = ARROW_ROTATION[maneuver.modifier ?? 'straight'] ?? 0;
   return (
     <View style={styles.maneuverIcon}>
-      <Text style={[styles.maneuverGlyph, { transform: [{ rotate: `${rotation}deg` }] }]}>↑</Text>
+      <Ionicons name="arrow-up" size={40} color={colors.text} style={{ transform: [{ rotate: `${rotation}deg` }] }} />
     </View>
   );
 }
@@ -795,7 +808,11 @@ function RadarCard({ camera, speedKmh }: { camera: UpcomingCamera; speedKmh: num
   return (
     <View style={[styles.alertCard, over && styles.alertCardOver]}>
       <View style={[styles.alertIcon, camera.kind === 'section' && { borderColor: semantic.warning }]}>
-        <Text style={styles.alertIconText}>{camera.kind === 'fixed' ? '📷' : '⏱️'}</Text>
+        <Ionicons
+          name={camera.kind === 'fixed' ? 'camera' : 'stopwatch'}
+          size={20}
+          color={camera.kind === 'fixed' ? RADAR_RED : semantic.warning}
+        />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.alertTitle} numberOfLines={1}>
@@ -850,7 +867,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roundButtonText: { color: colors.text, fontSize: 30, lineHeight: 34, fontWeight: '600', marginTop: -2 },
   searchInput: {
     ...glass,
     flex: 1,
@@ -861,19 +877,19 @@ const styles = StyleSheet.create({
     ...type.body,
   },
   destinationPill: { ...glass, flex: 1, minHeight: 48, borderRadius: 24, paddingHorizontal: spacing.lg, justifyContent: 'center' },
-  destinationName: { ...type.body, color: colors.text, fontWeight: '700' },
-  destinationAddress: { ...type.caption, color: colors.textMuted, fontWeight: '500' },
+  destinationName: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
+  destinationAddress: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted },
   results: { ...glass, borderRadius: radius.md, overflow: 'hidden' },
   resultRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   resultDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  resultName: { ...type.body, color: colors.text, fontWeight: '700' },
-  resultAddress: { ...type.caption, color: colors.textMuted, fontWeight: '500', marginTop: 2 },
+  resultName: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
+  resultAddress: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted, marginTop: 2 },
   pressed: { backgroundColor: colors.surfaceAlt },
 
   maneuverBanner: {
     ...glass,
-    backgroundColor: '#0E3B2A',
-    borderColor: 'rgba(79, 227, 161, 0.35)',
+    backgroundColor: '#0F2347',
+    borderColor: 'rgba(78, 139, 255, 0.4)',
     borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -881,9 +897,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   maneuverIcon: { width: 48, alignItems: 'center', justifyContent: 'center' },
-  maneuverGlyph: { color: colors.text, fontSize: 40, fontWeight: '800', lineHeight: 46 },
-  maneuverExit: { color: colors.accent, fontSize: 12, fontWeight: '800', marginTop: -4 },
-  maneuverDistance: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.6 },
+  maneuverExit: { ...type.label, color: colors.text, marginTop: 2 },
+  maneuverDistance: { fontFamily: fonts.numeralBold, color: colors.text, fontSize: 30, letterSpacing: -0.6 },
   maneuverText: { ...type.subheading, color: 'rgba(247, 248, 252, 0.85)' },
 
   alertCard: {
@@ -905,9 +920,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  alertIconText: { fontSize: 18 },
   alertTitle: { ...type.caption, color: colors.textMuted },
-  alertDistance: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+  alertDistance: { fontFamily: fonts.numeralBold, color: colors.text, fontSize: 24, letterSpacing: -0.4 },
   alertOver: { ...type.caption, color: colors.danger },
   sectionCard: {
     ...glass,
@@ -920,12 +934,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   sectionLabel: { ...type.label, color: semantic.warning },
-  sectionAvg: { fontSize: 34, fontWeight: '800', letterSpacing: -1, marginTop: 2 },
+  sectionAvg: { fontFamily: fonts.numeralBold, fontSize: 34, letterSpacing: -1, marginTop: 2 },
   sectionUnit: { ...type.caption, color: colors.textMuted },
   sectionMeta: { ...type.caption, color: colors.textMuted },
 
   limitSign: { backgroundColor: '#FFFFFF', borderColor: RADAR_RED, alignItems: 'center', justifyContent: 'center' },
-  limitText: { color: '#111111', fontWeight: '900', letterSpacing: -0.5 },
+  limitText: { fontFamily: fonts.numeralBold, color: '#111111', letterSpacing: -0.5 },
 
   speedCluster: { position: 'absolute', left: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   speedBubble: {
@@ -937,12 +951,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   speedBubbleOver: { borderColor: colors.danger, borderWidth: 2 },
-  speedValue: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -1, lineHeight: 30 },
+  speedValue: { fontFamily: fonts.numeralBold, color: colors.text, fontSize: 28, letterSpacing: -1, lineHeight: 32 },
   speedUnit: { ...type.label, color: colors.textMuted },
   recenter: {
     ...glass,
     position: 'absolute',
     right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -961,8 +978,8 @@ const styles = StyleSheet.create({
   panelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   radarDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
   panelTitle: { ...type.subheading, color: colors.text },
-  panelSubtitle: { ...type.caption, color: colors.textMuted, fontWeight: '500' },
-  attribution: { ...type.caption, color: colors.textFaint, fontWeight: '500', fontSize: 11, lineHeight: 15 },
+  panelSubtitle: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted },
+  attribution: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textFaint, fontSize: 11, lineHeight: 15 },
   errorText: { ...type.body, color: colors.danger },
   previewDuration: { ...type.title, color: colors.accent },
   previewMeta: { ...type.body, color: colors.textMuted },
@@ -990,5 +1007,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  exitText: { color: colors.danger, fontSize: 22, fontWeight: '800' },
 });

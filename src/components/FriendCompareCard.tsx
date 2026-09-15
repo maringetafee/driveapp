@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { colors, fonts, radius, spacing, type } from '../theme/colors';
 import { formatDistance } from '../utils/geo';
 import type { Units } from '../types/database';
 import type { FriendComparison } from '../utils/weeklyRecap';
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   },
   cardPressed: { backgroundColor: colors.surfaceAlt },
   header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm, marginBottom: 2 },
-  title: { ...type.body, color: colors.text, fontWeight: '700', flexShrink: 1 },
+  title: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text, flexShrink: 1 },
   caption: { ...type.caption, color: colors.textFaint },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   barLabel: { ...type.caption, color: colors.textMuted, width: 96 },

@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/state/authStore';
 import { supabase } from '../../src/lib/supabase';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, spacing, type } from '../../src/theme/colors';
+import Chip from '../../src/components/ui/Chip';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import type { Units } from '../../src/types/database';
 
@@ -18,7 +20,6 @@ export default function OnboardingScreen() {
   const [units, setUnits] = useState<Units>('kmh');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState<string | null>(null);
 
   const onFinish = async () => {
     if (!session) return;
@@ -46,8 +47,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  const inputStyle = (key: string) => [styles.input, focused === key && styles.inputFocused];
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -59,61 +58,27 @@ export default function OnboardingScreen() {
           </Text>
 
           <View style={styles.section}>
-            <TextInput
-              style={inputStyle('make')}
-              placeholder="Marca (ej. Volkswagen)"
-              placeholderTextColor={colors.textFaint}
-              value={make}
-              onChangeText={setMake}
-              onFocus={() => setFocused('make')}
-              onBlur={() => setFocused(null)}
-            />
-            <TextInput
-              style={inputStyle('model')}
-              placeholder="Modelo (ej. Golf GTI)"
-              placeholderTextColor={colors.textFaint}
-              value={model}
-              onChangeText={setModel}
-              onFocus={() => setFocused('model')}
-              onBlur={() => setFocused(null)}
-            />
+            <Input placeholder="Marca (ej. Volkswagen)" value={make} onChangeText={setMake} />
+            <Input placeholder="Modelo (ej. Golf GTI)" value={model} onChangeText={setModel} />
           </View>
 
           <Text style={styles.label}>Unidades</Text>
           <View style={styles.unitsRow}>
             {(['kmh', 'mph'] as Units[]).map((u) => (
-              <Pressable
+              <Chip
                 key={u}
+                label={u === 'kmh' ? 'km/h' : 'mph'}
+                active={units === u}
                 onPress={() => setUnits(u)}
-                style={[styles.unitPill, units === u && styles.unitPillActive]}
-              >
-                <Text style={[styles.unitPillText, units === u && styles.unitPillTextActive]}>
-                  {u === 'kmh' ? 'km/h' : 'mph'}
-                </Text>
-              </Pressable>
+                style={styles.unitChip}
+              />
             ))}
           </View>
 
           <Text style={styles.label}>Ciudad y país (opcional, para los rankings regionales)</Text>
           <View style={styles.section}>
-            <TextInput
-              style={inputStyle('city')}
-              placeholder="Ciudad (ej. Getafe)"
-              placeholderTextColor={colors.textFaint}
-              value={city}
-              onChangeText={setCity}
-              onFocus={() => setFocused('city')}
-              onBlur={() => setFocused(null)}
-            />
-            <TextInput
-              style={inputStyle('country')}
-              placeholder="País (ej. España)"
-              placeholderTextColor={colors.textFaint}
-              value={country}
-              onChangeText={setCountry}
-              onFocus={() => setFocused('country')}
-              onBlur={() => setFocused(null)}
-            />
+            <Input placeholder="Ciudad (ej. Getafe)" value={city} onChangeText={setCity} />
+            <Input placeholder="País (ej. España)" value={country} onChangeText={setCountry} />
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -138,29 +103,8 @@ const styles = StyleSheet.create({
   title: { ...type.title, color: colors.text },
   subtitle: { ...type.body, color: colors.textMuted, marginTop: spacing.sm, marginBottom: spacing.lg },
   section: { gap: spacing.md },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 15,
-    color: colors.text,
-    fontSize: 16,
-  },
-  inputFocused: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
   label: { ...type.caption, color: colors.textMuted, marginTop: spacing.lg, marginBottom: spacing.sm },
   unitsRow: { flexDirection: 'row', gap: spacing.sm },
-  unitPill: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  unitPillActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  unitPillText: { color: colors.textMuted, fontWeight: '700' },
-  unitPillTextActive: { color: colors.accent },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600', marginTop: spacing.sm },
+  unitChip: { flex: 1, paddingVertical: 12 },
+  error: { ...type.caption, color: colors.danger, marginTop: spacing.sm },
 });

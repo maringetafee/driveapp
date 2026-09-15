@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../theme/colors';
+import { colors, fonts, radius, spacing, type } from '../theme/colors';
 import { formatDistance, formatSpeed } from '../utils/geo';
 import { formatLaunchTime } from '../utils/launchTimer';
 import type { AggregateTripStats } from '../utils/aggregateTripStats';
@@ -52,6 +52,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   emoji: { fontSize: 20 },
-  value: { ...type.subheading, color: colors.text },
+  value: { ...type.subheading, fontFamily: fonts.numeralBold, color: colors.text },
   label: { ...type.caption, color: colors.textMuted, marginTop: 1 },
 });

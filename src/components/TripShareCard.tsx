@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import type { LineString } from 'geojson';
-import { colors, radius } from '../theme/colors';
+import { colors, fonts, radius } from '../theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../utils/geo';
 import { staticMapUrl } from '../utils/staticMap';
 import type { Units } from '../types/database';
@@ -90,15 +90,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandMarkText: { color: colors.accent, fontWeight: '800', fontSize: 13 },
-  brand: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  username: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  brandMarkText: { fontFamily: fonts.numeralBold, color: colors.accent, fontSize: 15 },
+  brand: { fontFamily: fonts.bodyExtraBold, color: colors.text, fontSize: 15 },
+  username: { fontFamily: fonts.bodyMedium, color: colors.textMuted, fontSize: 12, marginTop: 1 },
   map: { width: '100%', height: 130, borderRadius: radius.lg, marginBottom: 24, backgroundColor: colors.surface },
   scoreBlock: { alignItems: 'center', marginBottom: 28 },
-  scoreValue: { fontSize: 88, fontWeight: '800', letterSpacing: -3 },
-  scoreLabel: { color: colors.textMuted, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 },
+  scoreValue: { fontFamily: fonts.numeralBold, fontSize: 88, letterSpacing: -3 },
+  scoreLabel: {
+    fontFamily: fonts.bodyBold,
+    color: colors.textMuted,
+    fontSize: 13,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'center' },
-  statValue: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  statValue: { fontFamily: fonts.numeralBold, color: colors.text, fontSize: 18 },
+  statLabel: { fontFamily: fonts.bodyMedium, color: colors.textMuted, fontSize: 11, marginTop: 2 },
 });

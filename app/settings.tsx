@@ -8,14 +8,15 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../src/state/authStore';
-import { colors, radius, spacing, type } from '../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../src/theme/colors';
 import { disableAutoTracking, enableAutoTracking, isAutoTrackingEnabled } from '../src/background/autoTripTask';
+import Chip from '../src/components/ui/Chip';
+import Input from '../src/components/ui/Input';
 import PrimaryButton from '../src/components/ui/PrimaryButton';
 import type { Units } from '../src/types/database';
 
@@ -28,7 +29,6 @@ export default function SettingsScreen() {
 
   const [city, setCity] = useState(profile?.city ?? '');
   const [country, setCountry] = useState(profile?.country ?? '');
-  const [focused, setFocused] = useState<'city' | 'country' | null>(null);
   const [savingLocation, setSavingLocation] = useState(false);
   const [autoTracking, setAutoTracking] = useState(false);
   const [autoTrackingError, setAutoTrackingError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export default function SettingsScreen() {
   };
 
   const onChangeUnits = async (units: Units) => {
-    if (units === profile?.units) return;
+    if (units === profile?.units || busy === 'units') return;
     setBusy('units');
     await run(() => updateProfile({ units }), 'No se pudieron cambiar las unidades.');
     setBusy(null);
@@ -110,33 +110,13 @@ export default function SettingsScreen() {
     );
   };
 
-  const inputStyle = (key: 'city' | 'country') => [styles.input, focused === key && styles.inputFocused];
-
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Section title="Ubicación" footer="Se usa para los rankings de tu ciudad y de tu país.">
-            <TextInput
-              style={inputStyle('city')}
-              placeholder="Ciudad"
-              placeholderTextColor={colors.textFaint}
-              value={city}
-              onChangeText={setCity}
-              onFocus={() => setFocused('city')}
-              onBlur={() => setFocused(null)}
-              maxLength={60}
-            />
-            <TextInput
-              style={inputStyle('country')}
-              placeholder="País"
-              placeholderTextColor={colors.textFaint}
-              value={country}
-              onChangeText={setCountry}
-              onFocus={() => setFocused('country')}
-              onBlur={() => setFocused(null)}
-              maxLength={60}
-            />
+            <Input placeholder="Ciudad" value={city} onChangeText={setCity} maxLength={60} />
+            <Input placeholder="País" value={country} onChangeText={setCountry} maxLength={60} />
             <PrimaryButton
               title="Guardar ubicación"
               onPress={onSaveLocation}
@@ -147,21 +127,15 @@ export default function SettingsScreen() {
 
           <Section title="Unidades">
             <View style={styles.segment}>
-              {(['kmh', 'mph'] as Units[]).map((u) => {
-                const active = (profile?.units ?? 'kmh') === u;
-                return (
-                  <Pressable
-                    key={u}
-                    style={[styles.segmentItem, active && styles.segmentItemActive]}
-                    onPress={() => onChangeUnits(u)}
-                    disabled={busy === 'units'}
-                  >
-                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                      {u === 'kmh' ? 'Kilómetros (km/h)' : 'Millas (mph)'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {(['kmh', 'mph'] as Units[]).map((u) => (
+                <Chip
+                  key={u}
+                  label={u === 'kmh' ? 'Kilómetros (km/h)' : 'Millas (mph)'}
+                  active={(profile?.units ?? 'kmh') === u}
+                  onPress={() => onChangeUnits(u)}
+                  style={styles.segmentItem}
+                />
+              ))}
             </View>
           </Section>
 
@@ -259,7 +233,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
   section: { gap: spacing.sm },
   sectionTitle: { ...type.label, color: colors.textFaint, marginLeft: spacing.xs },
-  sectionFooter: { ...type.caption, color: colors.textFaint, fontWeight: '500', marginLeft: spacing.xs },
+  sectionFooter: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textFaint, marginLeft: spacing.xs },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -268,37 +242,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
-  input: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    color: colors.text,
-    fontSize: 15,
-  },
-  inputFocused: { borderColor: colors.accent },
   segment: { flexDirection: 'row', gap: spacing.sm },
-  segmentItem: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  segmentItemActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
-  segmentText: { ...type.caption, color: colors.textMuted },
-  segmentTextActive: { color: colors.accent, fontWeight: '700' },
+  segmentItem: { flex: 1 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   toggleTitle: { ...type.subheading, color: colors.text },
-  toggleSubtitle: { ...type.caption, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  toggleSubtitle: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted, marginTop: 2 },
+  error: { ...type.caption, color: colors.danger },
   emailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
   emailLabel: { ...type.body, color: colors.textMuted },
-  emailValue: { ...type.body, color: colors.text, fontWeight: '600', flexShrink: 1 },
+  emailValue: { ...type.body, fontFamily: fonts.bodySemiBold, color: colors.text, flexShrink: 1 },
   deleteButton: { alignSelf: 'center', paddingVertical: spacing.sm },
-  deleteText: { color: colors.danger, ...type.body, fontWeight: '700' },
-  version: { ...type.caption, color: colors.textFaint, textAlign: 'center', fontWeight: '500' },
+  deleteText: { ...type.body, fontFamily: fonts.bodyBold, color: colors.danger },
+  version: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textFaint, textAlign: 'center' },
 });

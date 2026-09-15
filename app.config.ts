@@ -27,7 +27,7 @@ const config: ExpoConfig = {
   android: {
     package: 'es.makemyweb.roadly',
     adaptiveIcon: {
-      backgroundColor: '#4FE3A1',
+      backgroundColor: '#FF7A29',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
@@ -49,6 +49,15 @@ const config: ExpoConfig = {
     'expo-status-bar',
     'expo-image',
     'expo-secure-store',
+    'expo-font',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        imageWidth: 160,
+        backgroundColor: '#0B0A0D',
+      },
+    ],
     [
       'expo-location',
       {

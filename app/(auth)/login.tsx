@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'expo-router';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors } from '../../src/theme/colors';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import { authStyles as styles } from '../../src/theme/authStyles';
 
@@ -19,7 +13,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
 
   const onSubmit = async () => {
     setError(null);
@@ -47,28 +40,20 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Cada trayecto cuenta.</Text>
 
           <View style={styles.form}>
-            <TextInput
-              style={[styles.input, focused === 'email' && styles.inputFocused]}
+            <Input
               placeholder="Email"
-              placeholderTextColor={colors.textFaint}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
             />
-            <TextInput
-              style={[styles.input, focused === 'password' && styles.inputFocused]}
+            <Input
               placeholder="Contraseña"
-              placeholderTextColor={colors.textFaint}
               secureTextEntry
               autoComplete="password"
               value={password}
               onChangeText={setPassword}
-              onFocus={() => setFocused('password')}
-              onBlur={() => setFocused(null)}
             />
 
             {error && <Text style={styles.error}>{error}</Text>}

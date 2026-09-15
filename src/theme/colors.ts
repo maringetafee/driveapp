@@ -1,29 +1,48 @@
-export const colors = {
-  background: '#0A0B0F',
-  backgroundElevated: '#0E1016',
-  surface: '#131520',
-  surfaceAlt: '#1A1D28',
-  surfaceRaised: '#20232F',
-  border: '#22252F',
-  borderStrong: '#333849',
-  text: '#F7F8FC',
-  textMuted: '#9CA3B5',
-  textFaint: '#6B7284',
+// Font families loaded via @expo-google-fonts in app/_layout.tsx (useFonts gate).
+// Space Grotesk carries numbers/titles (technical, sporty character — this is
+// where Roadly's stats should feel like data, not just text). Inter carries
+// body copy (max legibility at small sizes).
+export const fonts = {
+  numeralBold: 'SpaceGrotesk_700Bold',
+  numeralSemiBold: 'SpaceGrotesk_600SemiBold',
+  numeralMedium: 'SpaceGrotesk_500Medium',
+  bodyExtraBold: 'Inter_800ExtraBold',
+  bodyBold: 'Inter_700Bold',
+  bodySemiBold: 'Inter_600SemiBold',
+  bodyMedium: 'Inter_500Medium',
+} as const;
 
-  // Roadly green — reserved for primary actions, active states, good scores,
+export const colors = {
+  background: '#0B0A0D',
+  backgroundElevated: '#0F0D11',
+  surface: '#17151A',
+  surfaceAlt: '#1F1B22',
+  surfaceRaised: '#28232C',
+  border: '#2A262E',
+  borderStrong: '#3D3844',
+  text: '#F9F7F5',
+  textMuted: '#A6A1AA',
+  textFaint: '#726D78',
+
+  // Roadly amber — reserved for primary actions, active states, good scores,
   // achievements and other genuinely interactive/positive moments.
-  accent: '#4FE3A1',
-  accentSoft: 'rgba(79, 227, 161, 0.14)',
-  accentAlt: '#4C8DFF',
-  accentAltSoft: 'rgba(76, 141, 255, 0.14)',
+  accent: '#FF7A29',
+  accentSoft: 'rgba(255, 122, 41, 0.14)',
+  // Cool secondary — social features, informational accents, links.
+  accentAlt: '#4E8BFF',
+  accentAltSoft: 'rgba(78, 139, 255, 0.14)',
+
+  // Legible dark text placed *on top of* an accent-colored background.
+  onAccent: '#241000',
+  onDanger: '#2A0A0A',
 
   // Decorative-only (medal tiers). Do not reuse for semantic states.
-  gold: '#F5C24D',
-  silver: '#C7CCDA',
-  bronze: '#E0985F',
+  gold: '#F0B429',
+  silver: '#C9CDD6',
+  bronze: '#D98A52',
 
-  danger: '#FF6B6B',
-  dangerSoft: 'rgba(255, 107, 107, 0.14)',
+  danger: '#FF5A5F',
+  dangerSoft: 'rgba(255, 90, 95, 0.14)',
 } as const;
 
 // Semantic layer: what a color *means*, decoupled from which hue renders it.
@@ -33,7 +52,7 @@ export const semantic = {
   success: colors.accent,
   successSoft: colors.accentSoft,
   warning: colors.gold,
-  warningSoft: 'rgba(245, 194, 77, 0.14)',
+  warningSoft: 'rgba(240, 180, 41, 0.14)',
   danger: colors.danger,
   dangerSoft: colors.dangerSoft,
   neutral: colors.textMuted,
@@ -57,16 +76,39 @@ export const radius = {
   pill: 999,
 } as const;
 
+const tabularNums: import('react-native').TextStyle['fontVariant'] = ['tabular-nums'];
+
 export const type = {
   // Reserved for the single dominant number on a screen (live speed, driving score hero).
-  hero: { fontSize: 64, fontWeight: '800' as const, letterSpacing: -2.5, lineHeight: 66 },
-  display: { fontSize: 48, fontWeight: '800' as const, letterSpacing: -1.5, lineHeight: 50 },
-  title: { fontSize: 30, fontWeight: '800' as const, letterSpacing: -0.6, lineHeight: 36 },
-  heading: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.3, lineHeight: 28 },
-  subheading: { fontSize: 17, fontWeight: '700' as const, letterSpacing: -0.1, lineHeight: 23 },
-  body: { fontSize: 15, fontWeight: '500' as const, letterSpacing: 0, lineHeight: 21 },
-  caption: { fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.1, lineHeight: 18 },
-  label: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.7, lineHeight: 14 },
+  hero: {
+    fontFamily: fonts.numeralBold,
+    fontSize: 64,
+    letterSpacing: -2.5,
+    lineHeight: 66,
+    fontVariant: tabularNums,
+  },
+  display: {
+    fontFamily: fonts.numeralBold,
+    fontSize: 48,
+    letterSpacing: -1.5,
+    lineHeight: 50,
+    fontVariant: tabularNums,
+  },
+  // A secondary numeric weight class, one notch under `display` — the app's
+  // most-repeated stat readouts (StatRow values, podium values, records).
+  stat: {
+    fontFamily: fonts.numeralBold,
+    fontSize: 26,
+    letterSpacing: -0.6,
+    lineHeight: 30,
+    fontVariant: tabularNums,
+  },
+  title: { fontFamily: fonts.numeralBold, fontSize: 30, letterSpacing: -0.6, lineHeight: 36 },
+  heading: { fontFamily: fonts.numeralSemiBold, fontSize: 22, letterSpacing: -0.3, lineHeight: 28 },
+  subheading: { fontFamily: fonts.bodyBold, fontSize: 17, letterSpacing: -0.1, lineHeight: 23 },
+  body: { fontFamily: fonts.bodyMedium, fontSize: 15, letterSpacing: 0, lineHeight: 21 },
+  caption: { fontFamily: fonts.bodySemiBold, fontSize: 13, letterSpacing: 0.1, lineHeight: 18 },
+  label: { fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.7, lineHeight: 14 },
 } as const;
 
 export const shadow = {
@@ -93,4 +135,17 @@ export const shadow = {
     shadowRadius: 16,
     elevation: 8,
   },
+} as const;
+
+// The app's one canonical "card" shell (surface + border + radius.lg + padding)
+// — reuse this instead of re-declaring the same four properties per screen.
+export const cardStyles = {
+  base: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
+  pressed: { backgroundColor: colors.surfaceAlt, borderColor: colors.borderStrong },
 } as const;

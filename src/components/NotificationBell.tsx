@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../state/authStore';
@@ -24,7 +25,7 @@ export default function NotificationBell() {
 
   return (
     <ScaledPressable style={styles.button} onPress={() => router.push('/notifications')} hitSlop={8}>
-      <Text style={styles.icon}>🔔</Text>
+      <Ionicons name="notifications-outline" size={19} color={colors.text} />
       {unread > 0 && (
         <View style={styles.dot}>
           <Text style={styles.dotText}>{unread > 9 ? '9+' : unread}</Text>
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 17 },
   dot: {
     position: 'absolute',
     top: -4,
@@ -58,5 +58,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotText: { color: '#1A0505', fontSize: 9, fontWeight: '800' },
+  dotText: { color: colors.onDanger, fontSize: 9, fontWeight: '800' },
 });

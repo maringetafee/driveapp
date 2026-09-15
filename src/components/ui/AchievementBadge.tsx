@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, type } from '../../theme/colors';
+import { colors, radius, semantic, spacing, type } from '../../theme/colors';
 
 export type AchievementKind = 'record' | 'score' | 'speed';
 
 const KIND_STYLE: Record<AchievementKind, { emoji: string; color: string; bg: string }> = {
-  record: { emoji: '🏆', color: colors.gold, bg: 'rgba(245, 194, 77, 0.12)' },
+  record: { emoji: '🏆', color: colors.gold, bg: semantic.warningSoft },
   score: { emoji: '🔥', color: colors.accent, bg: colors.accentSoft },
   speed: { emoji: '⚡', color: colors.accentAlt, bg: colors.accentAltSoft },
 };

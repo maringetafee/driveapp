@@ -3,6 +3,18 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
+import {
+  useFonts,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
+import {
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 import { useAuthStore } from '../src/state/authStore';
 import { supabase } from '../src/lib/supabase';
 import { initMapbox } from '../src/lib/mapbox';
@@ -59,9 +71,18 @@ function ProfileLoadError() {
 
 export default function RootLayout() {
   const { session, profile, initializing, profileError } = useAuthStore();
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
   useAuthDeepLinks();
 
-  if (initializing || (session && !profile && !profileError)) return <Splash />;
+  if (initializing || !fontsLoaded || (session && !profile && !profileError)) return <Splash />;
   if (session && !profile) return <ProfileLoadError />;
 
   const hasOnboarded = !!profile?.onboarded_at;
@@ -118,5 +139,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  markText: { color: '#04140D', fontSize: 38, fontWeight: '900', letterSpacing: -1 },
+  markText: { color: colors.onAccent, fontSize: 38, fontWeight: '900', letterSpacing: -1 },
 });

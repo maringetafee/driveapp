@@ -139,6 +139,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   emoji: { fontSize: 14 },
-  pillText: { color: colors.accent, ...type.caption, fontWeight: '700' },
+  pillText: { ...type.caption, color: colors.accent },
   nextUpBlock: { gap: spacing.md, marginTop: 2 },
 });

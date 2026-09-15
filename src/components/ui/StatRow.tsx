@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
   itemWrap: { flex: 1, flexDirection: 'row', alignItems: 'stretch' },
   divider: { width: 1, backgroundColor: colors.border, marginVertical: 2 },
   item: { flex: 1, alignItems: 'center' },
-  value: { ...type.heading, color: colors.text },
+  value: { ...type.stat, color: colors.text },
   label: { ...type.caption, color: colors.textMuted, marginTop: 3, textAlign: 'center' },
 });

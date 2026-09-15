@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import type { LineString, Position } from 'geojson';
-import { colors, radius } from '../theme/colors';
+import { colors, radius, shadow } from '../theme/colors';
 
 interface Props {
   route: LineString | null;
@@ -59,6 +59,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.card,
   },
   map: { flex: 1 },
 });

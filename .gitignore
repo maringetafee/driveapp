@@ -43,3 +43,6 @@ yarn-error.*
 
 # local analysis tool cache
 /graphify-out
+
+# Supabase CLI local metadata
+supabase/.temp

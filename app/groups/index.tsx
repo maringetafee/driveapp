@@ -1,13 +1,16 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
-import { colors, radius, spacing, type } from '../../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import EmptyState from '../../src/components/ui/EmptyState';
+import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import SectionHeader from '../../src/components/ui/SectionHeader';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Group } from '../../src/types/database';
 
 export default function GroupsScreen() {
@@ -104,10 +107,8 @@ export default function GroupsScreen() {
 
             {creating && (
               <View style={styles.form}>
-                <TextInput
-                  style={styles.input}
+                <Input
                   placeholder="Nombre del grupo"
-                  placeholderTextColor={colors.textFaint}
                   value={newName}
                   onChangeText={setNewName}
                   maxLength={60}
@@ -118,10 +119,8 @@ export default function GroupsScreen() {
 
             {joining && (
               <View style={styles.form}>
-                <TextInput
-                  style={styles.input}
+                <Input
                   placeholder="Código de invitación"
-                  placeholderTextColor={colors.textFaint}
                   autoCapitalize="characters"
                   value={joinCode}
                   onChangeText={setJoinCode}
@@ -137,27 +136,31 @@ export default function GroupsScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <SkeletonList />
+          ) : (
             <EmptyState
               emoji="👥"
               title="Sin grupos todavía"
               subtitle="Crea un grupo privado o únete a uno con un código de invitación para tener vuestro propio ranking."
             />
-          ) : null
+          )
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            onPress={() => router.push(`/groups/${item.id}`)}
-          >
-            <View style={styles.groupIcon}>
-              <Text style={styles.groupIconText}>{item.name.slice(0, 1).toUpperCase()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.groupName}>{item.name}</Text>
-              <Text style={styles.groupCode}>Código: {item.invite_code}</Text>
-            </View>
-          </Pressable>
+        renderItem={({ item, index }) => (
+          <FadeSlideIn index={index}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(`/groups/${item.id}`)}
+            >
+              <View style={styles.groupIcon}>
+                <Text style={styles.groupIconText}>{item.name.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.groupName}>{item.name}</Text>
+                <Text style={styles.groupCode}>Código: {item.invite_code}</Text>
+              </View>
+            </Pressable>
+          </FadeSlideIn>
         )}
       />
     </SafeAreaView>
@@ -170,17 +173,7 @@ const styles = StyleSheet.create({
   headerBlock: { gap: spacing.lg, marginBottom: spacing.sm },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },
   form: { gap: spacing.sm },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    color: colors.text,
-    fontSize: 15,
-  },
-  error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  error: { ...type.caption, color: colors.danger },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,14 +188,14 @@ const styles = StyleSheet.create({
   groupIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: radius.md,
     backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  groupIconText: { color: colors.accent, fontWeight: '800', fontSize: 18 },
+  groupIconText: { fontFamily: fonts.numeralBold, color: colors.accent, fontSize: 18 },
   groupName: { ...type.subheading, color: colors.text },
   groupCode: { ...type.caption, color: colors.textFaint, marginTop: 2 },
 });

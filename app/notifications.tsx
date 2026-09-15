@@ -4,9 +4,10 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/state/authStore';
-import { colors, radius, spacing, type } from '../src/theme/colors';
+import { colors, fonts, radius, spacing, type } from '../src/theme/colors';
 import Avatar from '../src/components/ui/Avatar';
 import EmptyState from '../src/components/ui/EmptyState';
+import FadeSlideIn from '../src/components/ui/FadeSlideIn';
 import PrimaryButton from '../src/components/ui/PrimaryButton';
 import { SkeletonList } from '../src/components/ui/Skeleton';
 import type { NotificationType } from '../src/types/database';
@@ -125,43 +126,46 @@ export default function NotificationsScreen() {
             <EmptyState emoji="🔔" title="Sin novedades" subtitle="Aquí verás likes, comentarios, seguidores e insignias." />
           )
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.row, !item.read && styles.rowUnread]}
-            onPress={() => {
-              if (item.trip_id) router.push(`/trip/${item.trip_id}`);
-              else if (item.actor?.username && (item.type === 'follow' || item.type === 'follow_accept')) {
-                router.push(`/u/${item.actor.username}`);
-              }
-            }}
-          >
-            <View style={styles.emojiWrap}>
-              <Text style={styles.emoji}>{emojiFor(item.type)}</Text>
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.message}>{messageFor(item)}</Text>
-              <Text style={styles.time}>
-                {new Date(item.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-              </Text>
-              {item.type === 'follow_request' && (
-                <View style={styles.requestActions}>
-                  <PrimaryButton
-                    title="Aceptar"
-                    onPress={() => onRespondRequest(item.id, item.actor?.username, true)}
-                    loading={busyIds.has(item.id)}
-                    style={styles.requestButton}
-                  />
-                  <PrimaryButton
-                    title="Rechazar"
-                    variant="ghost"
-                    onPress={() => onRespondRequest(item.id, item.actor?.username, false)}
-                    loading={busyIds.has(item.id)}
-                    style={styles.requestButton}
-                  />
-                </View>
-              )}
-            </View>
-          </Pressable>
+        renderItem={({ item, index }) => (
+          <FadeSlideIn index={index}>
+            <Pressable
+              style={[styles.row, !item.read && styles.rowUnread]}
+              onPress={() => {
+                if (item.trip_id) router.push(`/trip/${item.trip_id}`);
+                else if (item.actor?.username && (item.type === 'follow' || item.type === 'follow_accept')) {
+                  router.push(`/u/${item.actor.username}`);
+                }
+              }}
+            >
+              <View style={styles.emojiWrap}>
+                <Text style={styles.emoji}>{emojiFor(item.type)}</Text>
+                {!item.read && <View style={styles.unreadDot} />}
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.message}>{messageFor(item)}</Text>
+                <Text style={styles.time}>
+                  {new Date(item.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </Text>
+                {item.type === 'follow_request' && (
+                  <View style={styles.requestActions}>
+                    <PrimaryButton
+                      title="Aceptar"
+                      onPress={() => onRespondRequest(item.id, item.actor?.username, true)}
+                      loading={busyIds.has(item.id)}
+                      style={styles.requestButton}
+                    />
+                    <PrimaryButton
+                      title="Rechazar"
+                      variant="ghost"
+                      onPress={() => onRespondRequest(item.id, item.actor?.username, false)}
+                      loading={busyIds.has(item.id)}
+                      style={styles.requestButton}
+                    />
+                  </View>
+                )}
+              </View>
+            </Pressable>
+          </FadeSlideIn>
         )}
       />
     </SafeAreaView>
@@ -191,7 +195,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: { fontSize: 16 },
-  message: { ...type.body, color: colors.text, fontWeight: '600' },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  message: { ...type.body, fontFamily: fonts.bodySemiBold, color: colors.text },
   time: { ...type.caption, color: colors.textFaint },
   requestActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   requestButton: { flex: 1, paddingVertical: 10 },
