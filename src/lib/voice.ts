@@ -12,8 +12,15 @@ const keepAwake: KeepAwakeModule | null = requireOptionalNativeModule('ExpoKeepA
 
 export const voiceAvailable = speech != null;
 
+let muted = false;
+
+export function setVoiceMuted(value: boolean) {
+  muted = value;
+  if (value) speech?.stop();
+}
+
 export function speak(text: string) {
-  speech?.speak(text, { language: 'es-ES' });
+  if (!muted) speech?.speak(text, { language: 'es-ES' });
 }
 
 export function stopSpeaking() {

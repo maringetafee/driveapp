@@ -19,15 +19,38 @@ export interface ApiManeuver {
   instruction: string;
 }
 
+export interface ApiBannerComponent {
+  /** text | icon (escudo de carretera) | delimiter | exit | exit-number | lane | guidance-view */
+  type: string;
+  text: string;
+  abbr?: string;
+  mapbox_shield?: { name?: string; display_ref?: string; text_color?: string };
+  directions?: string[];
+  active?: boolean;
+  active_direction?: string;
+}
+
+export interface ApiBannerText {
+  text: string;
+  type?: string;
+  modifier?: string;
+  degrees?: number;
+  driving_side?: string;
+  components?: ApiBannerComponent[];
+}
+
 export interface ApiStep {
   distance: number;
   duration: number;
   name: string;
+  ref?: string;
   maneuver: ApiManeuver;
   voiceInstructions?: { distanceAlongGeometry: number; announcement: string }[];
   bannerInstructions?: {
     distanceAlongGeometry: number;
-    primary: { text: string; type?: string; modifier?: string };
+    primary: ApiBannerText;
+    secondary?: ApiBannerText | null;
+    sub?: ApiBannerText | null;
   }[];
 }
 
@@ -42,7 +65,7 @@ export interface DirectionsRoute {
   distance: number;
   duration: number;
   geometry: LineString;
-  legs: { steps: ApiStep[]; annotation?: { maxspeed?: ApiMaxspeed[] } }[];
+  legs: { steps: ApiStep[]; annotation?: { maxspeed?: ApiMaxspeed[]; congestion?: string[] } }[];
 }
 
 function query(params: Record<string, string>): string {
@@ -87,7 +110,7 @@ export async function fetchDirections(
     banner_instructions: 'true',
     voice_units: 'metric',
     language: 'es',
-    annotations: 'maxspeed',
+    annotations: 'maxspeed,congestion',
     access_token: TOKEN,
   };
   // Con rumbo, la ruta sale hacia donde ya vamos en vez de pedir un cambio de sentido.

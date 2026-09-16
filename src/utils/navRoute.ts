@@ -1,33 +1,66 @@
 // Modelo de una ruta de navegación: dónde estamos sobre ella, qué maniobra
 // viene, qué límite hay y qué radares tiene. Sin dependencias de React Native.
 import type { LineString } from 'geojson';
-import type { DirectionsRoute } from '../lib/mapboxApi';
+import type { ApiBannerComponent, ApiBannerText, DirectionsRoute } from '../lib/mapboxApi';
 import { distanceM, type CameraIndex, type FixedCamera, type LatLon, type RouteCameras, type SectionCamera } from './speedCameras';
 
 export interface Maneuver {
   type: string;
   modifier?: string;
   exit?: number;
+  /** Rotondas: grados recorridos desde la entrada hasta la salida. */
+  degrees?: number;
+}
+
+export type BannerPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'shield'; text: string; shield: string }
+  | { kind: 'exit'; text: string };
+
+export interface Lane {
+  directions: string[];
+  active: boolean;
+  activeDirection?: string;
+}
+
+export interface Banner {
+  /** Distancia a lo largo de la ruta desde la que se muestra este cartel. */
+  fromAlong: number;
+  maneuver: Maneuver;
+  text: string;
+  parts: BannerPart[];
+  /** Destinos de la señal ("Parla / Toledo"). */
+  secondary: string | null;
+  lanes: Lane[] | null;
 }
 
 export interface RouteStep {
   startAlong: number;
   endAlong: number;
-  /** Maniobra al final de este paso (la siguiente que hará el conductor). */
-  next: { text: string; maneuver: Maneuver } | null;
+  durationS: number;
+  /** Vía por la que se circula durante este paso ("A-42 · Autovía de Toledo"). */
+  road: string;
+  /** Carteles de la maniobra al final de este paso, ordenados de más lejos a más cerca. */
+  banners: Banner[];
   voice: { along: number; text: string }[];
 }
+
+export type Congestion = 'low' | 'moderate' | 'heavy' | 'severe';
 
 export interface NavRoute {
   geometry: LineString;
   coords: LatLon[];
   /** Distancia acumulada hasta cada vértice. */
   cum: number[];
+  /** Lo mismo medido en Mercator: la métrica de `line-progress` en Mapbox. */
+  mercCum: number[];
   total: number;
   durationS: number;
   steps: RouteStep[];
   /** Límite de velocidad por segmento (coords[i] → coords[i + 1]). */
   maxspeed: (number | null)[];
+  /** Tráfico agrupado en tramos consecutivos del mismo nivel. */
+  traffic: { fromAlong: number; level: Congestion }[];
 }
 
 export interface RoutePosition {
@@ -36,10 +69,48 @@ export interface RoutePosition {
   segment: number;
 }
 
+function partsOf(components: ApiBannerComponent[] | undefined, fallback: string): BannerPart[] {
+  if (!components?.length) return fallback ? [{ kind: 'text', text: fallback }] : [];
+  const parts: BannerPart[] = [];
+  for (const c of components) {
+    const text = c.text.trim();
+    if (c.type === 'icon') parts.push({ kind: 'shield', text, shield: c.mapbox_shield?.name ?? 'default' });
+    else if (c.type === 'exit-number') parts.push({ kind: 'exit', text });
+    else if (c.type === 'text' && text && text !== '/') parts.push({ kind: 'text', text });
+  }
+  return parts;
+}
+
+function lanesOf(sub: ApiBannerText | null | undefined): Lane[] | null {
+  const lanes = sub?.components?.filter((c) => c.type === 'lane') ?? [];
+  // Si valen todos los carriles, no hay nada que indicar.
+  if (lanes.length < 2 || lanes.every((l) => l.active)) return null;
+  return lanes.map((l) => ({
+    directions: l.directions?.length ? l.directions : ['straight'],
+    active: !!l.active,
+    activeDirection: l.active_direction,
+  }));
+}
+
+function mercator(p: LatLon): [number, number] {
+  const lat = Math.max(-85, Math.min(85, p.lat));
+  return [(p.lon * Math.PI) / 180, Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))];
+}
+
+const CONGESTION: Record<string, Congestion> = { moderate: 'moderate', heavy: 'heavy', severe: 'severe' };
+// Un cambio de tráfico más corto que esto no merece cambiar el color de la línea.
+const MIN_TRAFFIC_RUN_M = 80;
+
 export function buildNavRoute(api: DirectionsRoute): NavRoute {
   const coords = api.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
   const cum = [0];
-  for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + distanceM(coords[i - 1], coords[i]));
+  const mercCum = [0];
+  for (let i = 1; i < coords.length; i++) {
+    cum.push(cum[i - 1] + distanceM(coords[i - 1], coords[i]));
+    const [ax, ay] = mercator(coords[i - 1]);
+    const [bx, by] = mercator(coords[i]);
+    mercCum.push(mercCum[i - 1] + Math.hypot(bx - ax, by - ay));
+  }
   const total = cum[cum.length - 1];
 
   const apiSteps = api.legs.flatMap((leg) => leg.steps);
@@ -54,23 +125,37 @@ export function buildNavRoute(api: DirectionsRoute): NavRoute {
     acc += s.distance;
     const endAlong = acc * scale;
     const following = apiSteps[i + 1];
-    const banner = s.bannerInstructions?.[0]?.primary;
-    const next = following
-      ? {
-          text: banner?.text ?? following.name ?? following.maneuver.instruction,
-          // El icono sale de la maniobra real: el banner redondea ("fork left" para una bifurcación suave).
-          maneuver: {
-            type: following.maneuver.type,
-            modifier: following.maneuver.modifier ?? banner?.modifier,
-            exit: following.maneuver.exit,
-          },
-        }
-      : null;
+    const banners: Banner[] = [];
+    if (following) {
+      // El icono sale de la maniobra real: el banner redondea ("fork left" para una bifurcación suave).
+      const base: Maneuver = {
+        type: following.maneuver.type,
+        modifier: following.maneuver.modifier,
+        exit: following.maneuver.exit,
+      };
+      for (const b of s.bannerInstructions ?? []) {
+        banners.push({
+          fromAlong: Math.max(startAlong, endAlong - b.distanceAlongGeometry * scale),
+          maneuver: { ...base, modifier: base.modifier ?? b.primary.modifier, degrees: b.primary.degrees },
+          text: b.primary.text,
+          parts: partsOf(b.primary.components, b.primary.text),
+          secondary: b.secondary?.text?.trim() || null,
+          lanes: lanesOf(b.sub),
+        });
+      }
+      if (banners.length === 0) {
+        const text = following.name || following.maneuver.instruction;
+        banners.push({ fromAlong: startAlong, maneuver: base, text, parts: [{ kind: 'text', text }], secondary: null, lanes: null });
+      }
+      banners.sort((a, b) => a.fromAlong - b.fromAlong);
+    }
     const voice = (s.voiceInstructions ?? []).map((v) => ({
       along: Math.min(endAlong, Math.max(startAlong, endAlong - v.distanceAlongGeometry * scale)),
       text: v.announcement,
     }));
-    steps.push({ startAlong, endAlong, next, voice });
+    const ref = s.ref?.split(';')[0]?.trim();
+    const road = [ref, s.name].filter(Boolean).join(' · ');
+    steps.push({ startAlong, endAlong, durationS: s.duration, road, banners, voice });
   });
 
   const maxspeed = api.legs.flatMap((leg) =>
@@ -80,7 +165,48 @@ export function buildNavRoute(api: DirectionsRoute): NavRoute {
     })
   );
 
-  return { geometry: api.geometry, coords, cum, total, durationS: api.duration, steps, maxspeed };
+  const traffic: NavRoute['traffic'] = [];
+  api.legs
+    .flatMap((leg) => leg.annotation?.congestion ?? [])
+    .forEach((raw, seg) => {
+      if (seg >= coords.length - 1) return;
+      const level = CONGESTION[raw] ?? 'low';
+      const last = traffic[traffic.length - 1];
+      if (last?.level === level) return;
+      // Un tramo anterior demasiado corto se funde con el que tenía delante.
+      if (last && traffic.length > 1 && cum[seg] - last.fromAlong < MIN_TRAFFIC_RUN_M) {
+        traffic.pop();
+        if (traffic[traffic.length - 1].level === level) return;
+      }
+      traffic.push({ fromAlong: traffic.length === 0 ? 0 : cum[seg], level });
+    });
+
+  return { geometry: api.geometry, coords, cum, mercCum, total, durationS: api.duration, steps, maxspeed, traffic };
+}
+
+/** Cartel vigente de un paso según lo recorrido. */
+export function bannerAt(step: RouteStep, along: number): Banner | null {
+  let current: Banner | null = step.banners[0] ?? null;
+  for (const b of step.banners) if (b.fromAlong <= along) current = b;
+  return current;
+}
+
+/** Fracción de la línea (0..1) en la métrica de `line-progress` de Mapbox. */
+export function lineProgressAt(route: NavRoute, along: number): number {
+  const { cum, mercCum } = route;
+  const mTotal = mercCum[mercCum.length - 1];
+  if (along <= 0 || mTotal <= 0) return 0;
+  if (along >= route.total) return 1;
+  let lo = 0;
+  let hi = cum.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] <= along) lo = mid;
+    else hi = mid;
+  }
+  const span = cum[hi] - cum[lo];
+  const t = span > 0 ? (along - cum[lo]) / span : 0;
+  return (mercCum[lo] + t * (mercCum[hi] - mercCum[lo])) / mTotal;
 }
 
 function projectOnSegment(route: NavRoute, p: LatLon, i: number): { along: number; offsetM: number } {
@@ -156,10 +282,18 @@ export function sliceRoute(route: NavRoute, fromAlong: number, toAlong: number):
   return { type: 'LineString', coordinates: points.map((p) => [p.lon, p.lat]) };
 }
 
-/** Tiempo restante estimado, proporcional a lo que queda de ruta. */
-export function remainingDurationS(route: NavRoute, along: number): number {
-  if (route.total <= 0) return 0;
-  return route.durationS * Math.max(0, 1 - along / route.total);
+/** Tiempo restante con la duración (tráfico incluido) de cada paso pendiente. */
+export function remainingDurationS(route: NavRoute, along: number, stepHint = 0): number {
+  if (route.total <= 0 || route.steps.length === 0) return 0;
+  const current = stepIndexAt(route, along, stepHint);
+  let seconds = 0;
+  for (let j = current; j < route.steps.length; j++) {
+    const s = route.steps[j];
+    const len = s.endAlong - s.startAlong;
+    const left = j === current && len > 0 ? Math.max(0, Math.min(1, (s.endAlong - along) / len)) : 1;
+    seconds += s.durationS * left;
+  }
+  return seconds;
 }
 
 // Un radar a más de esto de la línea de la ruta está en otra calzada o en otra vía.
