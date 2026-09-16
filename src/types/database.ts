@@ -44,6 +44,8 @@ export interface Group {
   created_at: string;
 }
 
+export type FuelType = 'gasoline' | 'diesel' | 'hybrid' | 'electric' | 'lpg';
+
 export interface Vehicle {
   id: string;
   user_id: string;
@@ -52,6 +54,12 @@ export interface Vehicle {
   year: number | null;
   image_url: string | null;
   is_default: boolean;
+  /** Columnas de 0010_trip_energy_cost.sql: pueden faltar si no se ha aplicado. */
+  fuel_type?: FuelType | null;
+  /** Litros (o kWh si es eléctrico) cada 100 km. */
+  consumption_per_100km?: number | null;
+  /** Precio fijo por litro/kWh; si es null se usa el precio medio de la zona. */
+  energy_price?: number | null;
   created_at: string;
 }
 
@@ -68,6 +76,13 @@ export interface Trip {
   driving_score: number | null;
   zero_to_50_s: number | null;
   zero_to_100_s: number | null;
+  fuel_type?: FuelType | null;
+  energy_used?: number | null;
+  energy_price?: number | null;
+  energy_cost_eur?: number | null;
+  /** Segundos desde el inicio de cada punto de route_geojson (0011). */
+  route_times?: number[] | null;
+  places_scanned_at?: string | null;
   route_geojson: LineString | null;
   road_type: string | null;
   tag: TripTag | null;
@@ -93,4 +108,41 @@ export interface Badge {
   name: string;
   description: string | null;
   icon_url: string | null;
+}
+
+export interface Segment {
+  id: string;
+  created_by: string;
+  name: string;
+  geometry: LineString;
+  distance_meters: number;
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+  created_at: string;
+}
+
+export interface SegmentEffort {
+  id: string;
+  segment_id: string;
+  trip_id: string;
+  user_id: string;
+  started_at: string;
+  duration_seconds: number;
+  avg_speed_kmh: number;
+  speed_stddev_kmh: number;
+  stops: number;
+  created_at: string;
+}
+
+export interface TripPlace {
+  trip_id: string;
+  user_id: string;
+  municipality_id: string;
+  municipality: string;
+  province_code: string;
+  lat: number;
+  lon: number;
+  visited_at: string;
 }

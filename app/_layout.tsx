@@ -123,6 +123,11 @@ export default function RootLayout() {
           <Stack.Screen name="vehicle/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="mod-car/[vehicleId]" options={{ headerShown: true, title: 'Mod Car' }} />
           <Stack.Screen name="navigate" options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="segments/index" options={{ headerShown: true, title: 'Tramos' }} />
+          <Stack.Screen name="segments/new" options={{ headerShown: true, title: 'Crear tramo' }} />
+          <Stack.Screen name="segments/[id]" options={{ headerShown: true, title: 'Tramo' }} />
+          <Stack.Screen name="places" options={{ headerShown: true, title: 'Lugares conquistados' }} />
+          <Stack.Screen name="wrapped" options={{ headerShown: true, title: 'Tu resumen' }} />
         </Stack.Protected>
       </Stack>
     </>

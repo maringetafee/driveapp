@@ -186,7 +186,7 @@ export default function PublicProfileScreen() {
               />
             )}
 
-            {!contentLocked && stats && <BestMarks stats={stats} units={profile.units} />}
+            {!contentLocked && <BestMarks userId={profile.id} units={profile.units} />}
 
             {!contentLocked && <BadgesRow userId={profile.id} stats={stats} />}
 

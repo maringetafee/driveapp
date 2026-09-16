@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useTripStore, type TripSummary } from '../state/tripStore';
+import { processNewTrip } from './tripPostProcess';
 import { isTripTooShort, MIN_TRIP_DISTANCE_METERS, MIN_TRIP_DURATION_SECONDS } from './tripRules';
 
 interface FinishOptions {
@@ -34,9 +35,17 @@ async function insertTrip(userId: string, summary: TripSummary): Promise<string 
       ...(summary.zeroTo50Seconds != null ? { zero_to_50_s: summary.zeroTo50Seconds } : {}),
       ...(summary.zeroTo100Seconds != null ? { zero_to_100_s: summary.zeroTo100Seconds } : {}),
     })
-    .select('id')
+    .select('id, started_at')
     .single();
   if (error || !data) return null;
+
+  processNewTrip({
+    id: data.id,
+    user_id: userId,
+    started_at: data.started_at,
+    route: summary.route,
+    times: summary.routeTimes,
+  });
 
   await supabase.from('trip_metrics').insert({
     trip_id: data.id,

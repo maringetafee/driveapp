@@ -34,7 +34,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 5,
-    height: CHART_HEIGHT,
+    // La altura de las barras no incluye el relleno de la caja.
+    height: CHART_HEIGHT + spacing.md * 2,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,

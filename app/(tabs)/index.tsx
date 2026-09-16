@@ -19,6 +19,10 @@ import WeeklyRecapCard from '../../src/components/WeeklyRecapCard';
 import StatRow from '../../src/components/ui/StatRow';
 import Divider from '../../src/components/ui/Divider';
 import SectionHeader from '../../src/components/ui/SectionHeader';
+import { periodLabel, periodRange, previousMonth } from '../../src/utils/wrapped';
+
+// Días del mes en los que se propone ver el resumen del mes anterior.
+const WRAPPED_PROMPT_DAYS = 10;
 
 interface LastTrip {
   id: string;
@@ -49,6 +53,7 @@ export default function DriveScreen() {
   const [streak, setStreak] = useState(0);
   const [recap, setRecap] = useState<WeeklyRecap | null>(null);
   const [topFriend, setTopFriend] = useState<FriendComparison | null>(null);
+  const [showWrapped, setShowWrapped] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -70,6 +75,18 @@ export default function DriveScreen() {
         });
       fetchWeeklyRecap(session.user.id).then(setRecap);
       fetchTopFriendThisWeek(session.user.id).then(setTopFriend);
+      if (new Date().getDate() <= WRAPPED_PROMPT_DAYS) {
+        const { since, until } = periodRange(previousMonth());
+        supabase
+          .from('trips')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .gte('started_at', since.toISOString())
+          .lt('started_at', until.toISOString())
+          .then(({ count }) => setShowWrapped((count ?? 0) > 0));
+      } else {
+        setShowWrapped(false);
+      }
     }, [session])
   );
 
@@ -202,6 +219,20 @@ export default function DriveScreen() {
           <Ionicons name="chevron-forward" size={20} color={colors.textFaint} />
         </Pressable>
 
+        {!isTracking && showWrapped && (
+          <Pressable
+            style={({ pressed }) => [styles.wrappedCard, pressed && { opacity: 0.85 }]}
+            onPress={() => router.push('/wrapped')}
+          >
+            <Text style={styles.wrappedEmoji}>📼</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wrappedTitle}>Tu resumen de {periodLabel(previousMonth()).split(' ')[0]} está listo</Text>
+              <Text style={styles.wrappedSub}>Kilómetros, dinero, lugares y tus marcas del mes</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.onAccent} />
+          </Pressable>
+        )}
+
         {!isTracking && (lastTrip || streak >= 2) && (
           <>
             <Divider style={styles.fullDivider} />
@@ -272,6 +303,18 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   greeting: { ...type.body, color: colors.textMuted, alignSelf: 'flex-start' },
+  wrappedCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  wrappedEmoji: { fontSize: 28 },
+  wrappedTitle: { ...type.body, fontFamily: fonts.bodyBold, color: colors.onAccent },
+  wrappedSub: { ...type.caption, color: 'rgba(36, 16, 0, 0.72)' },
   mapWrap: { width: '100%' },
   dial: { alignItems: 'center', marginTop: spacing.md },
   speedLabel: { ...type.label, color: colors.textFaint },

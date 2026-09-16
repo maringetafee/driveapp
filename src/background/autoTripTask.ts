@@ -4,6 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import { supabase } from '../lib/supabase';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
 import { isTripTooShort } from '../utils/tripRules';
+import { processNewTrip, routeTimesFrom } from '../utils/tripPostProcess';
 
 export const AUTO_TRIP_TASK = 'roadly-auto-trip';
 const STATE_KEY = 'roadly-auto-trip-state';
@@ -57,7 +58,8 @@ async function saveTrip(state: AutoTripState) {
   if (isTripTooShort(distanceMeters, durationSeconds)) return;
   const avgSpeedKmh = distanceMeters / 1000 / (durationSeconds / 3600);
 
-  await supabase.from('trips').insert({
+  const route = toLineString(state.points);
+  const { data: saved } = await supabase.from('trips').insert({
     user_id: userId,
     started_at: new Date(state.startedAt).toISOString(),
     ended_at: new Date(endedAt).toISOString(),
@@ -65,8 +67,17 @@ async function saveTrip(state: AutoTripState) {
     distance_meters: distanceMeters,
     avg_speed_kmh: Number.isFinite(avgSpeedKmh) ? avgSpeedKmh : 0,
     max_speed_kmh: maxSpeedKmh,
-    route_geojson: toLineString(state.points),
-  });
+    route_geojson: route,
+  }).select('id, started_at').single();
+  if (saved) {
+    await processNewTrip({
+      id: saved.id,
+      user_id: userId,
+      started_at: saved.started_at,
+      route,
+      times: routeTimesFrom(state.points, state.startedAt),
+    });
+  }
 }
 
 TaskManager.defineTask(AUTO_TRIP_TASK, async ({ data, error }) => {

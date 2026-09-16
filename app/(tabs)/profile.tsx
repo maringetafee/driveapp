@@ -17,6 +17,17 @@ import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
 import SectionHeader from '../../src/components/ui/SectionHeader';
+import VehicleEnergyFields, {
+  EMPTY_ENERGY_DRAFT,
+  energyDraftInvalid,
+  saveVehicleEnergy,
+} from '../../src/components/VehicleEnergyFields';
+
+const EXPLORE_LINKS = [
+  { href: '/places', emoji: '🗺️', title: 'Lugares', subtitle: 'Municipios y provincias conquistados' },
+  { href: '/segments', emoji: '🏁', title: 'Tramos', subtitle: 'Compite en regularidad' },
+  { href: '/wrapped', emoji: '📼', title: 'Resúmenes', subtitle: 'Tu mes y tu año al volante' },
+] as const;
 
 export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
@@ -25,11 +36,13 @@ export default function ProfileScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [stats, setStats] = useState<AggregateTripStats | null>(null);
   const [scoreTrend, setScoreTrend] = useState<number[]>([]);
+  const [focusCount, setFocusCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [newMake, setNewMake] = useState('');
   const [newModel, setNewModel] = useState('');
+  const [newEnergy, setNewEnergy] = useState(EMPTY_ENERGY_DRAFT);
   const [savingVehicle, setSavingVehicle] = useState(false);
 
   const loadVehicles = useCallback(() => {
@@ -52,6 +65,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (!session) return;
       let cancelled = false;
+      setFocusCount((n) => n + 1);
 
       fetchAggregateTripStats(session.user.id).then((s) => {
         if (!cancelled) setStats(s);
@@ -86,15 +100,21 @@ export default function ProfileScreen() {
   const onAddVehicle = async () => {
     if (!session || !newMake.trim() || !newModel.trim()) return;
     setSavingVehicle(true);
-    await supabase.from('vehicles').insert({
-      user_id: session.user.id,
-      make: newMake.trim(),
-      model: newModel.trim(),
-      is_default: vehicles.length === 0,
-    });
+    const { data: created } = await supabase
+      .from('vehicles')
+      .insert({
+        user_id: session.user.id,
+        make: newMake.trim(),
+        model: newModel.trim(),
+        is_default: vehicles.length === 0,
+      })
+      .select('id')
+      .single();
+    if (created && newEnergy.fuelType) await saveVehicleEnergy(created.id, newEnergy);
     setSavingVehicle(false);
     setNewMake('');
     setNewModel('');
+    setNewEnergy(EMPTY_ENERGY_DRAFT);
     setAddingVehicle(false);
     loadVehicles();
   };
@@ -158,7 +178,23 @@ export default function ProfileScreen() {
               />
             )}
 
-            {stats && <BestMarks stats={stats} units={units} />}
+            {session && <BestMarks userId={session.user.id} units={units} refreshKey={focusCount} />}
+
+            <View style={styles.exploreGrid}>
+              {EXPLORE_LINKS.map((link) => (
+                <Pressable
+                  key={link.href}
+                  style={({ pressed }) => [styles.exploreCard, pressed && styles.cardPressed]}
+                  onPress={() => router.push(link.href)}
+                >
+                  <Text style={styles.exploreEmoji}>{link.emoji}</Text>
+                  <Text style={styles.exploreTitle}>{link.title}</Text>
+                  <Text style={styles.exploreSub} numberOfLines={2}>
+                    {link.subtitle}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
             <ScoreTrendChart scores={scoreTrend} />
 
@@ -173,11 +209,13 @@ export default function ProfileScreen() {
               <View style={styles.addVehicleForm}>
                 <Input placeholder="Marca" value={newMake} onChangeText={setNewMake} />
                 <Input placeholder="Modelo" value={newModel} onChangeText={setNewModel} />
+                <Text style={styles.formLabel}>Consumo (para calcular cuánto gastas en cada trayecto)</Text>
+                <VehicleEnergyFields value={newEnergy} onChange={setNewEnergy} make={newMake} model={newModel} />
                 <PrimaryButton
                   title="Guardar coche"
                   onPress={onAddVehicle}
                   loading={savingVehicle}
-                  disabled={!newMake.trim() || !newModel.trim()}
+                  disabled={!newMake.trim() || !newModel.trim() || energyDraftInvalid(newEnergy)}
                 />
               </View>
             )}
@@ -230,6 +268,20 @@ const styles = StyleSheet.create({
   followCount: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted },
   followNumber: { fontFamily: fonts.numeralBold, color: colors.text },
   addVehicleForm: { gap: spacing.sm },
+  exploreGrid: { flexDirection: 'row', gap: spacing.sm },
+  exploreCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 4,
+  },
+  exploreEmoji: { fontSize: 22 },
+  exploreTitle: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
+  exploreSub: { ...type.caption, color: colors.textMuted, fontSize: 12, lineHeight: 16 },
+  formLabel: { ...type.caption, color: colors.textMuted, marginTop: spacing.sm },
   empty: { ...type.body, color: colors.textMuted, textAlign: 'center', marginTop: 20 },
   card: {
     backgroundColor: colors.surface,

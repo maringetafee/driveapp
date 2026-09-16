@@ -22,6 +22,7 @@ import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { scoreTone } from '../../src/utils/scoreTone';
 import { accelerationScore, brakingScore, corneringScore } from '../../src/utils/subScores';
 import TripRouteMap from '../../src/components/TripRouteMap';
+import TripHighlights from '../../src/components/TripHighlights';
 import TripShareCard from '../../src/components/TripShareCard';
 import Avatar from '../../src/components/ui/Avatar';
 import Chip from '../../src/components/ui/Chip';
@@ -33,7 +34,22 @@ import ProgressBar from '../../src/components/ui/ProgressBar';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import Divider from '../../src/components/ui/Divider';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
+import {
+  ensureTripEnergy,
+  FUEL_INFO,
+  formatDecimal,
+  formatEuros,
+  type EnergyEstimate,
+  type PriceSource,
+} from '../../src/utils/energyCost';
 import type { Profile, Trip, TripMetrics, TripTag } from '../../src/types/database';
+
+const PRICE_SOURCE_TEXT: Record<Exclude<PriceSource, 'saved'>, string> = {
+  nearby: 'precio medio de las gasolineras cercanas',
+  province: 'precio medio de tu provincia',
+  fixed: 'tu precio',
+  average: 'precio medio',
+};
 
 const TAG_OPTIONS: { key: TripTag; label: string }[] = [
   { key: 'commute', label: '🏢 Commute' },
@@ -58,6 +74,9 @@ export default function TripSummaryScreen() {
   const [owner, setOwner] = useState<Profile | null>(null);
   const [tripMetrics, setTripMetrics] = useState<TripMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  // undefined = calculando; null = el coche no tiene consumo configurado.
+  const [energy, setEnergy] = useState<EnergyEstimate | null | undefined>(undefined);
+  const [energyVehicleId, setEnergyVehicleId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const shareCardRef = useRef<ViewShotRef>(null);
 
@@ -87,11 +106,21 @@ export default function TripSummaryScreen() {
           setTripMetrics(metricsRes.data);
         }
         setLoading(false);
+        // El gasto puede tardar (precio de la zona): se muestra cuando llega.
+        if (tripData && tripData.user_id === myUserId) {
+          const { data: vehicle } = tripData.vehicle_id
+            ? await supabase.from('vehicles').select('*').eq('id', tripData.vehicle_id).maybeSingle()
+            : { data: null };
+          if (cancelled) return;
+          setEnergyVehicleId(vehicle?.id ?? null);
+          const estimate = await ensureTripEnergy(tripData, vehicle).catch(() => null);
+          if (!cancelled) setEnergy(estimate);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, myUserId]);
 
   const loadSocial = useCallback(async () => {
     const [{ count }, myLike, { data: commentRows }] = await Promise.all([
@@ -212,6 +241,7 @@ export default function TripSummaryScreen() {
           )}
 
           <StatRow
+            columns={2}
             items={[
               { label: 'Distancia', value: formatDistance(trip.distance_meters ?? 0, units) },
               { label: 'Duración', value: formatDuration(trip.duration_seconds ?? 0) },
@@ -219,6 +249,45 @@ export default function TripSummaryScreen() {
               { label: 'Vel. máxima', value: formatSpeed(trip.max_speed_kmh ?? 0, units) },
             ]}
           />
+
+          {isOwnTrip && energy !== undefined && (
+            <Pressable
+              style={({ pressed }) => [styles.energyCard, pressed && !energy && { opacity: 0.8 }]}
+              disabled={!!energy}
+              onPress={() => router.push(energyVehicleId ? `/vehicle/${energyVehicleId}` : '/(tabs)/profile')}
+            >
+              <View style={styles.energyIcon}>
+                <Ionicons
+                  name={energy?.fuelType === 'electric' ? 'flash' : 'water'}
+                  size={20}
+                  color={colors.accent}
+                />
+              </View>
+              {energy ? (
+                <View style={styles.flex}>
+                  <Text style={styles.energyLabel}>Gasto estimado</Text>
+                  <Text style={styles.energyCost}>{formatEuros(energy.cost)}</Text>
+                  <Text style={styles.energyDetail}>
+                    {formatDecimal(energy.used, energy.used < 10 ? 2 : 1)} {FUEL_INFO[energy.fuelType].unit} a{' '}
+                    {formatDecimal(energy.price, 3)} €/{FUEL_INFO[energy.fuelType].unit}
+                    {energy.priceSource !== 'saved' ? ` · ${PRICE_SOURCE_TEXT[energy.priceSource]}` : ''}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.flex}>
+                  <Text style={styles.energyLabel}>¿Cuánto te ha costado?</Text>
+                  <Text style={styles.energyDetail}>
+                    {energyVehicleId
+                      ? 'Añade el consumo de tu coche para ver el gasto en combustible de cada trayecto.'
+                      : 'Añade tu coche y su consumo para ver el gasto en combustible de cada trayecto.'}
+                  </Text>
+                </View>
+              )}
+              {!energy && <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />}
+            </Pressable>
+          )}
+
+          <TripHighlights trip={trip} isOwnTrip={isOwnTrip} units={units} />
 
           {(trip.zero_to_50_s != null || trip.zero_to_100_s != null) && (
             <View style={styles.subScores}>
@@ -350,6 +419,27 @@ const styles = StyleSheet.create({
   content: { padding: spacing.xl, gap: spacing.lg },
   title: { ...type.heading, color: colors.text },
   score: { marginVertical: spacing.xs },
+  energyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
+  energyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  energyLabel: { ...type.caption, color: colors.textMuted },
+  energyCost: { ...type.stat, color: colors.text, marginTop: 2 },
+  energyDetail: { ...type.caption, color: colors.textMuted, marginTop: 2 },
   subScores: { gap: spacing.md },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   socialRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },

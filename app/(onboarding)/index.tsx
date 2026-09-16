@@ -7,6 +7,11 @@ import { colors, spacing, type } from '../../src/theme/colors';
 import Chip from '../../src/components/ui/Chip';
 import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
+import VehicleEnergyFields, {
+  EMPTY_ENERGY_DRAFT,
+  energyDraftInvalid,
+  saveVehicleEnergy,
+} from '../../src/components/VehicleEnergyFields';
 import type { Units } from '../../src/types/database';
 
 export default function OnboardingScreen() {
@@ -15,6 +20,7 @@ export default function OnboardingScreen() {
 
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
+  const [energy, setEnergy] = useState(EMPTY_ENERGY_DRAFT);
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [units, setUnits] = useState<Units>('kmh');
@@ -27,13 +33,18 @@ export default function OnboardingScreen() {
     setLoading(true);
     try {
       if (make.trim() && model.trim()) {
-        const { error: vehicleError } = await supabase.from('vehicles').insert({
-          user_id: session.user.id,
-          make: make.trim(),
-          model: model.trim(),
-          is_default: true,
-        });
+        const { data: vehicle, error: vehicleError } = await supabase
+          .from('vehicles')
+          .insert({
+            user_id: session.user.id,
+            make: make.trim(),
+            model: model.trim(),
+            is_default: true,
+          })
+          .select('id')
+          .single();
         if (vehicleError) throw vehicleError;
+        if (energy.fuelType) await saveVehicleEnergy(vehicle.id, energy);
       }
       await completeOnboarding({
         units,
@@ -62,6 +73,9 @@ export default function OnboardingScreen() {
             <Input placeholder="Modelo (ej. Golf GTI)" value={model} onChangeText={setModel} />
           </View>
 
+          <Text style={styles.label}>Combustible y consumo (para saber cuánto te cuesta cada trayecto)</Text>
+          <VehicleEnergyFields value={energy} onChange={setEnergy} make={make} model={model} />
+
           <Text style={styles.label}>Unidades</Text>
           <View style={styles.unitsRow}>
             {(['kmh', 'mph'] as Units[]).map((u) => (
@@ -87,6 +101,7 @@ export default function OnboardingScreen() {
             title="Empezar a conducir"
             onPress={onFinish}
             loading={loading}
+            disabled={energyDraftInvalid(energy)}
             style={{ marginTop: spacing.md }}
           />
         </ScrollView>

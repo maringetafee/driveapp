@@ -1,36 +1,60 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius, spacing, type } from '../theme/colors';
-import { formatDistance, formatSpeed } from '../utils/geo';
-import { formatLaunchTime } from '../utils/launchTimer';
-import type { AggregateTripStats } from '../utils/aggregateTripStats';
+import {
+  currentRecords,
+  fetchRecordRows,
+  formatRecordValue,
+  RECORD_INFO,
+  type PersonalRecord,
+  type RecordKey,
+} from '../utils/personalRecords';
 import type { Units } from '../types/database';
 import SectionHeader from './ui/SectionHeader';
 
-export default function BestMarks({ stats, units }: { stats: AggregateTripStats; units: Units }) {
-  if (stats.tripCount === 0) return null;
+interface Props {
+  userId: string;
+  units: Units;
+  /** Cambia para volver a cargar (p. ej. al volver a la pantalla). */
+  refreshKey?: number;
+}
 
-  const items = [
-    { emoji: '⚡', label: 'Vel. máxima', value: formatSpeed(stats.maxSpeedKmh, units) },
-    { emoji: '🚀', label: 'Mejor 0-100 km/h', value: formatLaunchTime(stats.best0to100Seconds) },
-    { emoji: '🎯', label: 'Mejor score', value: stats.bestDrivingScore != null ? String(stats.bestDrivingScore) : '—' },
-    { emoji: '🛣️', label: 'Trayecto más largo', value: formatDistance(stats.longestTripMeters, units) },
-  ];
+/** Récords personales: marcas propias en vez de una nota. */
+export default function BestMarks({ userId, units, refreshKey }: Props) {
+  const [records, setRecords] = useState<Map<RecordKey, PersonalRecord> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchRecordRows(userId).then((rows) => {
+      if (!cancelled) setRecords(new Map(currentRecords(rows).map((r) => [r.key, r])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, refreshKey]);
+
+  if (!records || records.size === 0) return null;
 
   return (
     <View style={styles.wrap}>
-      <SectionHeader title="Mejores marcas" />
+      <SectionHeader title="Récords personales" />
       <View style={styles.grid}>
-        {items.map((item) => (
-          <View key={item.label} style={styles.item}>
-            <Text style={styles.emoji}>{item.emoji}</Text>
-            <View style={{ flexShrink: 1 }}>
-              <Text style={styles.value}>{item.value}</Text>
-              <Text style={styles.label} numberOfLines={1}>
-                {item.label}
-              </Text>
+        {(Object.keys(RECORD_INFO) as RecordKey[]).map((key) => {
+          const record = records.get(key);
+          return (
+            <View key={key} style={styles.item}>
+              <Text style={styles.emoji}>{RECORD_INFO[key].emoji}</Text>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                  {record ? formatRecordValue(key, record.value, units) : '—'}
+                </Text>
+                <Text style={styles.label} numberOfLines={1}>
+                  {RECORD_INFO[key].short}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

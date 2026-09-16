@@ -5,6 +5,7 @@ import type { LineString } from 'geojson';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
 import { computeDrivingScore, DrivingMetricsTracker } from '../utils/drivingMetrics';
 import { LaunchTimer } from '../utils/launchTimer';
+import { routeTimesFrom } from '../utils/tripPostProcess';
 
 export interface TripSummary {
   startedAt: number;
@@ -14,6 +15,8 @@ export interface TripSummary {
   avgSpeedKmh: number;
   durationSeconds: number;
   route: LineString;
+  /** Segundos desde startedAt de cada punto de `route`. */
+  routeTimes: number[];
   drivingScore: number;
   hardAccelerations: number;
   hardBrakes: number;
@@ -156,6 +159,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       avgSpeedKmh: Number.isFinite(avgSpeedKmh) ? avgSpeedKmh : 0,
       durationSeconds,
       route: toLineString(state.points),
+      routeTimes: routeTimesFrom(state.points, state.startedAt),
       hardAccelerations: metrics.hardAccelerations,
       hardBrakes: metrics.hardBrakes,
       sharpTurns: metrics.sharpTurns,
