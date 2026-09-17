@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { colors, spacing, type } from '../../src/theme/colors';
 import Chip from '../../src/components/ui/Chip';
 import Input from '../../src/components/ui/Input';
+import OnboardingRoadAnim from '../../src/components/ui/OnboardingRoadAnim';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import VehicleEnergyFields, {
   EMPTY_ENERGY_DRAFT,
@@ -62,6 +63,7 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+          <OnboardingRoadAnim />
           <Text style={styles.eyebrow}>ÚLTIMO PASO</Text>
           <Text style={styles.title}>Tu primer coche</Text>
           <Text style={styles.subtitle}>

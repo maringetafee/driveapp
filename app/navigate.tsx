@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,10 @@ import * as Location from 'expo-location';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import cameraData from '../src/data/speedCameras.json';
 import { fetchDirections, searchPlaces, type Place } from '../src/lib/mapboxApi';
+import { weatherAlertAt, type WeatherAlert } from '../src/lib/weatherApi';
+import { broadcastLiveFix, broadcastLiveStop, openSharerChannel, type LiveFix } from '../src/lib/liveShare';
+import { supabase } from '../src/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { allowScreenOff, keepScreenOn, setVoiceMode, speak, stopSpeaking, type VoiceMode } from '../src/lib/voice';
 import { LaneGlyph, ManeuverGlyph } from '../src/components/nav/ManeuverGlyph';
 import { useAuthStore } from '../src/state/authStore';
@@ -169,6 +173,12 @@ export default function NavigateScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const tripStatus = useTripStore((s) => s.status);
+  const destParams = useLocalSearchParams<{
+    destLat?: string;
+    destLon?: string;
+    destName?: string;
+    destAddress?: string;
+  }>();
 
   const [phase, setPhase] = useState<Phase>('explore');
   const [fix, setFix] = useState<Fix | null>(null);
@@ -189,6 +199,14 @@ export default function NavigateScreen() {
   const [voiceMode, setVoiceModeState] = useState<VoiceMode>('voice');
   const [overview, setOverview] = useState(false);
   const [navZoom, setNavZoom] = useState(ZOOM_CITY);
+  const [weatherAlert, setWeatherAlert] = useState<WeatherAlert | null>(null);
+  const [weatherDismissed, setWeatherDismissed] = useState(false);
+  const weatherFetched = useRef(false);
+  const [friends, setFriends] = useState<{ id: string; username: string }[]>([]);
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
+  const [sharingWith, setSharingWith] = useState<{ id: string; username: string } | null>(null);
+  const liveChannelRef = useRef<RealtimeChannel | null>(null);
+  const lastBroadcastRef = useRef(0);
 
   const watcher = useRef(new RadarWatcher(CAMERA_INDEX)).current;
   const cameraRef = useRef<Mapbox.Camera>(null);
@@ -248,6 +266,78 @@ export default function NavigateScreen() {
 
   const cycleVoiceMode = () =>
     setVoiceModeState((m) => (m === 'voice' ? 'alerts' : m === 'alerts' ? 'off' : 'voice'));
+
+  const stopSharing = useCallback(async () => {
+    const myId = useAuthStore.getState().session?.user.id;
+    const channel = liveChannelRef.current;
+    if (channel) {
+      broadcastLiveStop(channel);
+      supabase.removeChannel(channel);
+      liveChannelRef.current = null;
+    }
+    if (myId && sharingWith) {
+      await supabase.from('live_shares').delete().eq('sharer_id', myId).eq('viewer_id', sharingWith.id);
+    }
+    setSharingWith(null);
+  }, [sharingWith]);
+
+  const openSharePicker = async () => {
+    if (sharingWith) {
+      stopSharing();
+      return;
+    }
+    const myId = useAuthStore.getState().session?.user.id;
+    if (!myId) return;
+    const { data: follows } = await supabase
+      .from('follows')
+      .select('followed_id')
+      .eq('follower_id', myId)
+      .eq('status', 'accepted');
+    const ids = (follows ?? []).map((f) => f.followed_id);
+    if (ids.length === 0) {
+      setFriends([]);
+      setSharePickerOpen(true);
+      return;
+    }
+    const { data: profiles } = await supabase.from('profiles').select('id, username').in('id', ids);
+    setFriends((profiles as { id: string; username: string }[]) ?? []);
+    setSharePickerOpen(true);
+  };
+
+  const startSharing = async (friend: { id: string; username: string }) => {
+    const myId = useAuthStore.getState().session?.user.id;
+    if (!myId) return;
+    const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+    await supabase
+      .from('live_shares')
+      .upsert({ sharer_id: myId, viewer_id: friend.id, expires_at: expiresAt }, { onConflict: 'sharer_id,viewer_id' });
+    liveChannelRef.current = openSharerChannel(myId);
+    setSharingWith(friend);
+    setSharePickerOpen(false);
+  };
+
+  const sharingWithRef = useRef<{ id: string; username: string } | null>(null);
+  useEffect(() => {
+    sharingWithRef.current = sharingWith;
+  }, [sharingWith]);
+
+  useEffect(() => {
+    if (phase !== 'navigating' && liveChannelRef.current) stopSharing();
+  }, [phase, stopSharing]);
+
+  useEffect(() => {
+    return () => {
+      const channel = liveChannelRef.current;
+      if (channel) {
+        broadcastLiveStop(channel);
+        supabase.removeChannel(channel);
+      }
+      const myId = useAuthStore.getState().session?.user.id;
+      if (myId && sharingWithRef.current) {
+        supabase.from('live_shares').delete().eq('sharer_id', myId).eq('viewer_id', sharingWithRef.current.id);
+      }
+    };
+  }, []);
 
   const onArrive = useCallback(() => {
     const name = destinationRef.current?.name ?? 'tu destino';
@@ -348,6 +438,11 @@ export default function NavigateScreen() {
     const { state, events } = watcher.update({ ...p, speedKmh, headingDeg: heading, timestamp: loc.timestamp, along });
     setRadar(state);
     for (const event of events) speak(radarSpeech(event, speedKmh), 'alert');
+
+    if (liveChannelRef.current && Date.now() - lastBroadcastRef.current > 3000) {
+      lastBroadcastRef.current = Date.now();
+      broadcastLiveFix(liveChannelRef.current, { lat: p.lat, lon: p.lon, speedKmh, heading });
+    }
   };
 
   const onLocationRef = useRef(handleLocation);
@@ -403,6 +498,14 @@ export default function NavigateScreen() {
     };
   }, [query, phase]);
 
+  useEffect(() => {
+    if (weatherFetched.current || !fix) return;
+    weatherFetched.current = true;
+    weatherAlertAt(fix.lat, fix.lon)
+      .then(setWeatherAlert)
+      .catch(() => {});
+  }, [fix]);
+
   const confirmExit = useCallback(() => {
     const userId = useAuthStore.getState().session?.user.id;
     const tracking = useTripStore.getState().status === 'tracking';
@@ -457,6 +560,21 @@ export default function NavigateScreen() {
       setRouteLoading(false);
     }
   };
+
+  const autoDestApplied = useRef(false);
+  useEffect(() => {
+    if (autoDestApplied.current || phase !== 'explore' || !fix) return;
+    const { destLat, destLon } = destParams;
+    if (!destLat || !destLon) return;
+    autoDestApplied.current = true;
+    choosePlace({
+      id: 'shared-destination',
+      name: destParams.destName ?? 'Destino',
+      address: destParams.destAddress ?? '',
+      lat: Number(destLat),
+      lon: Number(destLon),
+    });
+  }, [phase, fix, destParams.destLat, destParams.destLon, destParams.destName, destParams.destAddress]);
 
   const startNavigation = () => {
     if (!route) return;
@@ -787,6 +905,41 @@ export default function NavigateScreen() {
           </View>
         )}
 
+        {sharePickerOpen && (
+          <View style={styles.results}>
+            {friends.length === 0 ? (
+              <View style={styles.resultRow}>
+                <Text style={styles.resultAddress}>Sigue a algún amigo para poder compartir tu ubicación con él.</Text>
+              </View>
+            ) : (
+              friends.map((friend, i) => (
+                <Pressable
+                  key={friend.id}
+                  onPress={() => startSharing(friend)}
+                  style={({ pressed }) => [styles.resultRow, i > 0 && styles.resultDivider, pressed && styles.pressed]}
+                >
+                  <Ionicons name="person-circle-outline" size={20} color={colors.textMuted} />
+                  <Text style={styles.resultName}>@{friend.username}</Text>
+                </Pressable>
+              ))
+            )}
+            <Pressable onPress={() => setSharePickerOpen(false)} style={[styles.resultRow, styles.resultDivider]}>
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+              <Text style={styles.resultAddress}>Cancelar</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {phase === 'explore' && !weatherDismissed && weatherAlert && results.length === 0 && !searching && (
+          <Pressable style={styles.weatherBanner} onPress={() => setWeatherDismissed(true)}>
+            <Ionicons name={weatherAlert.icon} size={18} color={colors.text} />
+            <Text style={styles.weatherText} numberOfLines={2}>
+              {weatherAlert.text}
+            </Text>
+            <Ionicons name="close" size={16} color={colors.textMuted} />
+          </Pressable>
+        )}
+
         {showAlerts && radar.section && <SectionCard section={radar.section} />}
         {showAlerts && radar.upcoming && <RadarCard camera={radar.upcoming} speedKmh={speed} />}
       </View>
@@ -820,6 +973,12 @@ export default function NavigateScreen() {
             label={overview ? 'Volver a la navegación' : 'Ver la ruta completa'}
             active={overview}
             onPress={toggleOverview}
+          />
+          <MapControl
+            icon="location"
+            label={sharingWith ? `Compartiendo con @${sharingWith.username}: toca para dejar de compartir` : 'Compartir ubicación en directo'}
+            active={!!sharingWith}
+            onPress={openSharePicker}
           />
         </View>
       )}
@@ -1150,6 +1309,16 @@ const styles = StyleSheet.create({
   resultName: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text },
   resultAddress: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textMuted, marginTop: 2 },
   pressed: { backgroundColor: colors.surfaceAlt },
+  weatherBanner: {
+    ...glass,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  weatherText: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.text, flex: 1 },
 
   banner: {
     ...shadow.floating,

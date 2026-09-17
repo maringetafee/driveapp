@@ -205,6 +205,16 @@ export async function nearbyFuelStations(
     .sort((a, b) => a.price - b.price);
 }
 
+/** Precio medio de la provincia para ese combustible, para comparar el ahorro de la más barata. */
+export async function provinceMedianPrice(fuelType: FuelType, point: { lat: number; lon: number }): Promise<number | null> {
+  const info = FUEL_INFO[fuelType];
+  if (info.productId == null) return null;
+  const province = await provinceAt(point.lat, point.lon);
+  if (!province) return null;
+  const stations = await provinceStationsFull(province, info.productId);
+  return stations.length ? median(stations.map((s) => s.price)) : null;
+}
+
 function tripEndPoint(trip: Trip): { lat: number; lon: number } | null {
   const coords = trip.route_geojson?.coordinates;
   const last = coords?.[coords.length - 1];

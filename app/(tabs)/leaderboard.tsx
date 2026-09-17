@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
@@ -277,10 +277,41 @@ function Podium({ rows, formatValue }: { rows: Row[]; formatValue: (r: Row) => s
 
   return (
     <View style={styles.podiumRow}>
-      <PodiumSlot row={second} place={2} color={colors.silver} avatarSize={44} riserHeight={52} formatValue={formatValue} />
-      <PodiumSlot row={first} place={1} color={colors.gold} avatarSize={64} riserHeight={76} formatValue={formatValue} />
-      <PodiumSlot row={third} place={3} color={colors.bronze} avatarSize={44} riserHeight={40} formatValue={formatValue} />
+      <PodiumSlot row={second} place={2} color={colors.silver} avatarSize={44} riserHeight={52} formatValue={formatValue} index={1} />
+      <PodiumSlot row={first} place={1} color={colors.gold} avatarSize={64} riserHeight={76} formatValue={formatValue} index={2} />
+      <PodiumSlot row={third} place={3} color={colors.bronze} avatarSize={44} riserHeight={40} formatValue={formatValue} index={0} />
     </View>
+  );
+}
+
+function GoldGlow({ size }: { size: number }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.goldGlow,
+        {
+          width: size + 28,
+          height: size + 28,
+          borderRadius: (size + 28) / 2,
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.55] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }) }],
+        },
+      ]}
+    />
   );
 }
 
@@ -291,6 +322,7 @@ function PodiumSlot({
   avatarSize,
   riserHeight,
   formatValue,
+  index,
 }: {
   row?: Row;
   place: 1 | 2 | 3;
@@ -298,20 +330,26 @@ function PodiumSlot({
   avatarSize: number;
   riserHeight: number;
   formatValue: (r: Row) => string;
+  index: number;
 }) {
   if (!row) return <View style={styles.podiumSlot} />;
   return (
-    <Pressable style={styles.podiumSlot} onPress={() => router.push(`/u/${row.username}`)}>
-      {place === 1 && <Ionicons name="trophy" size={22} color={color} style={styles.podiumTrophy} />}
-      <Avatar username={row.username} size={avatarSize} />
-      <Text style={styles.podiumUsername} numberOfLines={1}>
-        @{row.username}
-      </Text>
-      <Text style={[styles.podiumValue, { color }]}>{formatValue(row)}</Text>
-      <View style={[styles.podiumRiser, { height: riserHeight, backgroundColor: color }]}>
-        <Text style={styles.podiumRiserRank}>{place}</Text>
-      </View>
-    </Pressable>
+    <FadeSlideIn index={index} style={styles.podiumSlot}>
+      <Pressable style={styles.podiumSlotInner} onPress={() => router.push(`/u/${row.username}`)}>
+        {place === 1 && <Ionicons name="trophy" size={22} color={color} style={styles.podiumTrophy} />}
+        <View style={{ width: avatarSize, height: avatarSize, alignItems: 'center', justifyContent: 'center' }}>
+          {place === 1 && <GoldGlow size={avatarSize} />}
+          <Avatar username={row.username} size={avatarSize} />
+        </View>
+        <Text style={styles.podiumUsername} numberOfLines={1}>
+          @{row.username}
+        </Text>
+        <Text style={[styles.podiumValue, { color }]}>{formatValue(row)}</Text>
+        <View style={[styles.podiumRiser, { height: riserHeight, backgroundColor: color }]}>
+          <Text style={styles.podiumRiserRank}>{place}</Text>
+        </View>
+      </Pressable>
+    </FadeSlideIn>
   );
 }
 
@@ -374,7 +412,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  podiumSlot: { flex: 1, alignItems: 'center', gap: 6 },
+  podiumSlot: { flex: 1 },
+  podiumSlotInner: { alignItems: 'center', gap: 6 },
+  goldGlow: { position: 'absolute', backgroundColor: colors.gold, shadowColor: colors.gold, shadowOpacity: 0.9, shadowRadius: 16, shadowOffset: { width: 0, height: 0 }, elevation: 10 },
   podiumTrophy: { marginBottom: 2 },
   podiumUsername: { ...type.caption, color: colors.text, maxWidth: 92 },
   podiumValue: { fontFamily: fonts.numeralBold, fontSize: 16, color: colors.text, marginBottom: spacing.sm },

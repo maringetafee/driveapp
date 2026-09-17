@@ -93,6 +93,31 @@ const config: ExpoConfig = {
         RNMapboxMapsVersion: '11.23.1',
       },
     ],
+    [
+      'expo-notifications',
+      {
+        icon: './assets/android-icon-foreground.png',
+        color: '#FF7A29',
+      },
+    ],
+    [
+      'react-native-android-widget',
+      {
+        widgets: [
+          {
+            name: 'RoadlyStreak',
+            label: 'Racha de Roadly',
+            minWidth: '180dp',
+            minHeight: '110dp',
+            targetCellWidth: 3,
+            targetCellHeight: 2,
+            description: 'Tu racha de días conduciendo y tu último resultado.',
+            previewImage: './assets/icon.png',
+            updatePeriodMillis: 1800000,
+          },
+        ],
+      },
+    ],
   ],
   extra: {
     mapboxPublicToken: process.env.EXPO_PUBLIC_MAPBOX_TOKEN,

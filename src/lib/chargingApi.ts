@@ -15,10 +15,12 @@ export interface ChargingPoint {
   operator: string | null;
   costText: string | null;
   distanceKm: number | null;
+  connectorTypes: string[];
 }
 
 interface OcmConnection {
   PowerKW?: number | null;
+  ConnectionType?: { Title?: string } | null;
 }
 
 interface OcmPoi {
@@ -49,8 +51,8 @@ export async function nearbyChargingPoints(
     distance: String(radiusKm),
     distanceunit: 'KM',
     maxresults: '50',
-    compact: 'true',
-    verbose: 'false',
+    // compact=false: sin esto, OperatorInfo y ConnectionType llegan solo como IDs.
+    compact: 'false',
   });
   if (KEY) params.set('key', KEY);
 
@@ -62,7 +64,9 @@ export async function nearbyChargingPoints(
     .map((poi): ChargingPoint | null => {
       const a = poi.AddressInfo;
       if (!a?.Latitude || !a?.Longitude) return null;
-      const powers = (poi.Connections ?? []).map((c) => c.PowerKW ?? 0).filter((p) => p > 0);
+      const connections = poi.Connections ?? [];
+      const powers = connections.map((c) => c.PowerKW ?? 0).filter((p) => p > 0);
+      const connectorTypes = [...new Set(connections.map((c) => c.ConnectionType?.Title).filter((t): t is string => !!t))];
       return {
         id: String(poi.ID),
         name: a.Title ?? 'Punto de carga',
@@ -73,6 +77,7 @@ export async function nearbyChargingPoints(
         operator: poi.OperatorInfo?.Title ?? null,
         costText: poi.UsageCost?.trim() || null,
         distanceKm: a.Distance ?? null,
+        connectorTypes,
       };
     })
     .filter((p): p is ChargingPoint => p != null)

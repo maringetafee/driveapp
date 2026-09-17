@@ -37,6 +37,8 @@ function messageFor(n: NotificationRow): string {
       return `${actor} aceptó tu solicitud de seguimiento`;
     case 'badge':
       return `Nueva insignia: ${n.badge?.name ?? '—'}`;
+    case 'live_share':
+      return `${actor} está compartiendo su viaje en directo`;
   }
 }
 
@@ -53,6 +55,8 @@ function emojiFor(type: NotificationType): string {
       return '🤝';
     case 'badge':
       return '🏅';
+    case 'live_share':
+      return '📍';
   }
 }
 
@@ -131,7 +135,9 @@ export default function NotificationsScreen() {
             <Pressable
               style={[styles.row, !item.read && styles.rowUnread]}
               onPress={() => {
-                if (item.trip_id) router.push(`/trip/${item.trip_id}`);
+                if (item.type === 'live_share' && item.actor?.username) {
+                  router.push(`/live/${item.actor.username}`);
+                } else if (item.trip_id) router.push(`/trip/${item.trip_id}`);
                 else if (item.actor?.username && (item.type === 'follow' || item.type === 'follow_accept')) {
                   router.push(`/u/${item.actor.username}`);
                 }

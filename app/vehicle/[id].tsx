@@ -11,6 +11,7 @@ import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
 import SectionHeader from '../../src/components/ui/SectionHeader';
+import VehicleMaintenanceSection from '../../src/components/VehicleMaintenanceSection';
 import VehicleEnergyFields, {
   EMPTY_ENERGY_DRAFT,
   energyColumns,
@@ -210,6 +211,8 @@ export default function VehicleDetailScreen() {
             )}
           </View>
         )}
+
+        {isMine && <VehicleMaintenanceSection vehicleId={vehicle.id} />}
 
         {isMine && (
           <View style={styles.actions}>

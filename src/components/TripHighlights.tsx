@@ -15,6 +15,7 @@ import { PROVINCES } from '../utils/places';
 import { effortsForTrip, formatRegularity, type MatchedEffort } from '../utils/segments';
 import { tripProcessing } from '../utils/tripPostProcess';
 import type { Trip, TripPlace, Units } from '../types/database';
+import Confetti from './ui/Confetti';
 import SectionHeader from './ui/SectionHeader';
 
 interface Props {
@@ -99,7 +100,8 @@ export default function TripHighlights({ trip, isOwnTrip, units }: Props) {
   return (
     <View style={styles.wrap}>
       {records.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { position: 'relative' }]}>
+          <Confetti />
           <SectionHeader title="🏆 Nuevos récords personales" />
           {records.map((record) => {
             const info = RECORD_INFO[record.key];

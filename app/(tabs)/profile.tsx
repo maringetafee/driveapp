@@ -17,6 +17,7 @@ import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
 import SectionHeader from '../../src/components/ui/SectionHeader';
+import StreakFlame from '../../src/components/ui/StreakFlame';
 import VehicleEnergyFields, {
   EMPTY_ENERGY_DRAFT,
   energyDraftInvalid,
@@ -164,7 +165,7 @@ export default function ProfileScreen() {
               </Text>
               {stats && stats.streak >= 2 && (
                 <Text style={styles.followCount}>
-                  🔥 <Text style={styles.followNumber}>{stats.streak}</Text> días seguidos
+                  <StreakFlame size={13} /> <Text style={styles.followNumber}>{stats.streak}</Text> días seguidos
                 </Text>
               )}
             </View>

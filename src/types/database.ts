@@ -23,7 +23,7 @@ export interface Profile {
 
 export type TripTag = 'commute' | 'road_trip' | 'night' | 'other';
 export type FollowStatus = 'pending' | 'accepted';
-export type NotificationType = 'like' | 'comment' | 'follow' | 'follow_request' | 'follow_accept' | 'badge';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'follow_request' | 'follow_accept' | 'badge' | 'live_share';
 
 export interface AppNotification {
   id: string;

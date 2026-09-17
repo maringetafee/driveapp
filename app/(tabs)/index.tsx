@@ -17,6 +17,9 @@ import TripRouteMap from '../../src/components/TripRouteMap';
 import FriendCompareCard from '../../src/components/FriendCompareCard';
 import WeeklyRecapCard from '../../src/components/WeeklyRecapCard';
 import StatRow from '../../src/components/ui/StatRow';
+import StreakFlame from '../../src/components/ui/StreakFlame';
+import { syncStreakWidget } from '../../src/widgets/syncStreakWidget';
+import { syncStreakReminder } from '../../src/utils/streakReminder';
 import Divider from '../../src/components/ui/Divider';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import { periodLabel, periodRange, previousMonth } from '../../src/utils/wrapped';
@@ -70,8 +73,11 @@ export default function DriveScreen() {
         .limit(30)
         .then(({ data }) => {
           const rows = data ?? [];
+          const streakVal = computeStreak(rows.map((r) => r.started_at));
           setLastTrip(rows[0] ?? null);
-          setStreak(computeStreak(rows.map((r) => r.started_at)));
+          setStreak(streakVal);
+          syncStreakWidget({ streak: streakVal, lastScore: rows[0]?.driving_score ?? null });
+          syncStreakReminder(rows[0]?.started_at ?? null, streakVal);
         });
       fetchWeeklyRecap(session.user.id).then(setRecap);
       fetchTopFriendThisWeek(session.user.id).then(setTopFriend);
@@ -270,7 +276,7 @@ export default function DriveScreen() {
               {streak >= 2 && (
                 <View style={styles.streakCard}>
                   <View style={styles.streakIconWrap}>
-                    <Text style={styles.streakEmoji}>🔥</Text>
+                    <StreakFlame style={styles.streakEmoji} />
                   </View>
                   <View>
                     <Text style={styles.streakNumber}>{streak} días</Text>

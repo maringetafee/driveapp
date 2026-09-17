@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { Animated, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,16 +9,72 @@ import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../src/theme/colors';
 import type { FuelType, Vehicle } from '../src/types/database';
-import { FUEL_INFO, FUEL_TYPES, formatEuros, nearbyFuelStations, type FuelStation } from '../src/utils/energyCost';
+import {
+  FUEL_INFO,
+  FUEL_TYPES,
+  formatEuros,
+  nearbyFuelStations,
+  provinceMedianPrice,
+  type FuelStation,
+} from '../src/utils/energyCost';
 import { nearbyChargingPoints, type ChargingPoint } from '../src/lib/chargingApi';
 import LinesMap from '../src/components/LinesMap';
 import Chip from '../src/components/ui/Chip';
+import ScaledPressable from '../src/components/ui/ScaledPressable';
+import FadeSlideIn from '../src/components/ui/FadeSlideIn';
 import { SkeletonList } from '../src/components/ui/Skeleton';
 
-const RADIUS_KM = 15;
+const RADIUS_OPTIONS = [15, 30, 50] as const;
+const TANK_LITERS_FOR_SAVINGS = 50;
 
 function formatKm(meters: number): string {
   return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
+}
+
+function navigateTo(lat: number, lon: number, name: string, address: string) {
+  const params = new URLSearchParams({ destLat: String(lat), destLon: String(lon), destName: name, destAddress: address });
+  router.push(`/navigate?${params.toString()}`);
+}
+
+/** Precio del hero, contando desde 0 cada vez que cambia (combustible, radio...). */
+function AnimatedPrice({ value, style }: { value: number; style: StyleProp<TextStyle> }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const listener = anim.addListener(({ value: v }) => setDisplay(v));
+    anim.setValue(0);
+    const animation = Animated.spring(anim, { toValue: value, useNativeDriver: false, speed: 8, bounciness: 4 });
+    animation.start();
+    return () => {
+      anim.removeListener(listener);
+      animation.stop();
+    };
+  }, [value, anim]);
+
+  return <Text style={style}>{formatEuros(display)}</Text>;
+}
+
+/** Insignia "MÁS BARATA"/"MÁS CERCANO" con un pulso suave para que destaque en la lista. */
+function PulsingBadge({ label }: { label: string }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.12, duration: 650, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1, duration: 650, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scale]);
+
+  return (
+    <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
+      <Text style={styles.badgeText}>{label}</Text>
+    </Animated.View>
+  );
 }
 
 type LoadState = 'loading' | 'no-gps' | 'error' | 'ready';
@@ -27,9 +83,12 @@ export default function FuelStationsScreen() {
   const myId = useAuthStore((s) => s.session?.user.id);
   const [fuelType, setFuelType] = useState<FuelType>('gasoline');
   const [autoFuelType, setAutoFuelType] = useState<FuelType | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number>(RADIUS_OPTIONS[0]);
+  const [connectorFilter, setConnectorFilter] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [chargers, setChargers] = useState<ChargingPoint[]>([]);
+  const [medianPrice, setMedianPrice] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,6 +108,10 @@ export default function FuelStationsScreen() {
         });
     }, [myId])
   );
+
+  useEffect(() => {
+    setConnectorFilter(null);
+  }, [fuelType, radiusKm]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,15 +136,20 @@ export default function FuelStationsScreen() {
         });
         if (cancelled) return;
         if (fuelType === 'electric') {
-          const points = await nearbyChargingPoints(point, RADIUS_KM);
+          const points = await nearbyChargingPoints(point, radiusKm);
           if (cancelled) return;
           setChargers(points);
           setStations([]);
+          setMedianPrice(null);
         } else {
-          const list = await nearbyFuelStations(fuelType, point, RADIUS_KM * 1000);
+          const [list, median] = await Promise.all([
+            nearbyFuelStations(fuelType, point, radiusKm * 1000),
+            provinceMedianPrice(fuelType, point),
+          ]);
           if (cancelled) return;
           setStations(list);
           setChargers([]);
+          setMedianPrice(median);
         }
         if (!cancelled) setState('ready');
       } catch {
@@ -92,14 +160,17 @@ export default function FuelStationsScreen() {
       cancelled = true;
       subscription?.remove();
     };
-  }, [fuelType]);
+  }, [fuelType, radiusKm]);
+
+  const connectorTypes = [...new Set(chargers.flatMap((c) => c.connectorTypes))].sort();
+  const filteredChargers = connectorFilter ? chargers.filter((c) => c.connectorTypes.includes(connectorFilter)) : chargers;
 
   const points: FeatureCollection<Point> | undefined =
     fuelType === 'electric'
-      ? chargers.length
+      ? filteredChargers.length
         ? {
             type: 'FeatureCollection',
-            features: chargers.map((c) => ({
+            features: filteredChargers.map((c) => ({
               type: 'Feature',
               properties: { name: c.name },
               geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
@@ -119,6 +190,7 @@ export default function FuelStationsScreen() {
 
   const info = FUEL_INFO[fuelType];
   const cheapest = stations[0];
+  const savings = cheapest && medianPrice != null ? (medianPrice - cheapest.price) * TANK_LITERS_FOR_SAVINGS : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
@@ -132,10 +204,19 @@ export default function FuelStationsScreen() {
           </View>
           {fuelType !== 'electric' && state === 'ready' && cheapest && (
             <>
-              <Text style={styles.heroValue}>{formatEuros(cheapest.price)}</Text>
+              <AnimatedPrice value={cheapest.price} style={styles.heroValue} />
               <Text style={styles.heroLabel}>
                 más barato · {info.label} · {cheapest.brand || cheapest.municipality}
               </Text>
+              {savings != null && savings > 0.5 && (
+                <View style={styles.savingsPill}>
+                  <Ionicons name="trending-down" size={13} color={colors.accent} />
+                  <Text style={styles.savingsText}>
+                    Ahorras ~{formatEuros(savings)} en un depósito de {TANK_LITERS_FOR_SAVINGS} L frente a la media de la
+                    provincia
+                  </Text>
+                </View>
+              )}
             </>
           )}
           {autoFuelType && (
@@ -148,6 +229,21 @@ export default function FuelStationsScreen() {
             <Chip key={ft} label={FUEL_INFO[ft].label} active={ft === fuelType} onPress={() => setFuelType(ft)} />
           ))}
         </View>
+
+        <View style={styles.chipRow}>
+          {RADIUS_OPTIONS.map((r) => (
+            <Chip key={r} label={`${r} km`} active={r === radiusKm} onPress={() => setRadiusKm(r)} />
+          ))}
+        </View>
+
+        {fuelType === 'electric' && connectorTypes.length > 1 && (
+          <View style={styles.chipRow}>
+            <Chip label="Todos" active={!connectorFilter} onPress={() => setConnectorFilter(null)} />
+            {connectorTypes.map((ct) => (
+              <Chip key={ct} label={ct} active={connectorFilter === ct} onPress={() => setConnectorFilter(ct)} />
+            ))}
+          </View>
+        )}
 
         {state === 'loading' && <SkeletonList count={3} />}
 
@@ -162,65 +258,80 @@ export default function FuelStationsScreen() {
         )}
 
         {state === 'ready' && fuelType !== 'electric' && stations.length === 0 && (
-          <Text style={styles.hint}>No hay gasolineras de {info.label.toLowerCase()} en {RADIUS_KM} km a la redonda.</Text>
+          <Text style={styles.hint}>No hay gasolineras de {info.label.toLowerCase()} en {radiusKm} km a la redonda.</Text>
         )}
 
         {state === 'ready' && fuelType !== 'electric' && stations.length > 0 && (
-          <View style={{ gap: spacing.sm }}>
+          <View key={`${fuelType}-${radiusKm}`} style={{ gap: spacing.sm }}>
             {stations.slice(0, 20).map((s, i) => (
-              <View key={s.id} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.rowTop}>
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {s.brand || 'Estación'}
+              <FadeSlideIn key={s.id} index={i}>
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.rowTop}>
+                      <Text style={styles.rowName} numberOfLines={1}>
+                        {s.brand || 'Estación'}
+                      </Text>
+                      {i === 0 && <PulsingBadge label="MÁS BARATA" />}
+                    </View>
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      {s.address || s.municipality} · {formatKm(s.distanceM)}
                     </Text>
-                    {i === 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>MÁS BARATA</Text>
-                      </View>
-                    )}
                   </View>
-                  <Text style={styles.rowMeta} numberOfLines={1}>
-                    {s.address || s.municipality} · {formatKm(s.distanceM)}
-                  </Text>
+                  <Text style={[styles.rowPrice, i === 0 && { color: colors.accent }]}>{formatEuros(s.price)}</Text>
+                  <ScaledPressable
+                    style={styles.navButton}
+                    hitSlop={8}
+                    onPress={() => navigateTo(s.lat, s.lon, s.brand || 'Estación', s.address || s.municipality)}
+                  >
+                    <Ionicons name="navigate" size={18} color={colors.accent} />
+                  </ScaledPressable>
                 </View>
-                <Text style={[styles.rowPrice, i === 0 && { color: colors.accent }]}>{formatEuros(s.price)}</Text>
-              </View>
+              </FadeSlideIn>
             ))}
           </View>
         )}
 
-        {state === 'ready' && fuelType === 'electric' && chargers.length === 0 && (
-          <Text style={styles.hint}>No hemos encontrado puntos de carga en {RADIUS_KM} km a la redonda.</Text>
+        {state === 'ready' && fuelType === 'electric' && filteredChargers.length === 0 && (
+          <Text style={styles.hint}>No hemos encontrado puntos de carga en {radiusKm} km a la redonda.</Text>
         )}
 
-        {state === 'ready' && fuelType === 'electric' && chargers.length > 0 && (
-          <View style={{ gap: spacing.sm }}>
-            {chargers.slice(0, 20).map((c, i) => (
-              <View key={c.id} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.rowTop}>
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {c.operator || c.name}
+        {state === 'ready' && fuelType === 'electric' && filteredChargers.length > 0 && (
+          <View key={`electric-${radiusKm}-${connectorFilter ?? 'all'}`} style={{ gap: spacing.sm }}>
+            {filteredChargers.slice(0, 20).map((c, i) => (
+              <FadeSlideIn key={c.id} index={i}>
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.rowTop}>
+                      <Text style={styles.rowName} numberOfLines={1}>
+                        {c.operator || c.name}
+                      </Text>
+                      {i === 0 && <PulsingBadge label="MÁS CERCANO" />}
+                    </View>
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      {c.address || c.name}
+                      {c.maxPowerKw ? ` · hasta ${Math.round(c.maxPowerKw)} kW` : ''}
                     </Text>
-                    {i === 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>MÁS CERCANO</Text>
-                      </View>
+                    {c.connectorTypes.length > 0 && (
+                      <Text style={styles.rowMeta} numberOfLines={1}>
+                        {c.connectorTypes.join(' · ')}
+                      </Text>
+                    )}
+                    {!!c.costText && (
+                      <Text style={styles.rowCost} numberOfLines={1}>
+                        {c.costText}
+                      </Text>
                     )}
                   </View>
-                  <Text style={styles.rowMeta} numberOfLines={1}>
-                    {c.address || c.name}
-                    {c.maxPowerKw ? ` · hasta ${Math.round(c.maxPowerKw)} kW` : ''}
-                  </Text>
-                  {!!c.costText && (
-                    <Text style={styles.rowCost} numberOfLines={1}>
-                      {c.costText}
-                    </Text>
-                  )}
+                  {c.distanceKm != null && <Text style={styles.rowPrice}>{c.distanceKm.toFixed(1)} km</Text>}
+                  <ScaledPressable
+                    style={styles.navButton}
+                    hitSlop={8}
+                    onPress={() => navigateTo(c.lat, c.lon, c.operator || c.name, c.address)}
+                  >
+                    <Ionicons name="navigate" size={18} color={colors.accent} />
+                  </ScaledPressable>
                 </View>
-                {c.distanceKm != null && <Text style={styles.rowPrice}>{c.distanceKm.toFixed(1)} km</Text>}
-              </View>
+              </FadeSlideIn>
             ))}
             <Text style={styles.attribution}>
               Precio según lo informado por cada operador (no siempre disponible). Datos: OpenChargeMap.
@@ -252,6 +363,17 @@ const styles = StyleSheet.create({
   heroValue: { fontFamily: fonts.numeralBold, fontSize: 40, color: colors.accent, marginTop: spacing.sm },
   heroLabel: { ...type.body, color: colors.textMuted },
   heroHint: { ...type.caption, color: colors.textFaint, marginTop: 4 },
+  savingsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginTop: spacing.sm,
+  },
+  savingsText: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.accent, flexShrink: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   hint: { ...type.body, color: colors.textMuted },
   row: {
@@ -269,6 +391,14 @@ const styles = StyleSheet.create({
   rowMeta: { ...type.caption, color: colors.textMuted, marginTop: 2 },
   rowCost: { ...type.caption, color: colors.accent, marginTop: 2 },
   rowPrice: { fontFamily: fonts.numeralBold, fontSize: 18, color: colors.text },
+  navButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   badge: { backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   badgeText: { ...type.label, color: colors.accent, fontSize: 10 },
   attribution: { ...type.caption, fontFamily: fonts.bodyMedium, color: colors.textFaint, fontSize: 11, lineHeight: 15 },

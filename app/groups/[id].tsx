@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,12 +7,29 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import { formatLaunchTime } from '../../src/utils/launchTimer';
+import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../../src/components/ui/Avatar';
 import Chip from '../../src/components/ui/Chip';
 import EmptyState from '../../src/components/ui/EmptyState';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { Group, LeaderboardMetric, LeaderboardPeriod } from '../../src/types/database';
+
+/** Lunes 00:00 de la semana en curso (mismo criterio que date_trunc('week', now()) en Postgres). */
+function currentWeekStart(): Date {
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7; // lunes = 0 ... domingo = 6
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - day, 0, 0, 0, 0);
+}
+
+function formatCountdown(ms: number): string {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}min`;
+}
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
   { key: 'driving_score', label: 'Driving score' },
@@ -46,6 +63,12 @@ export default function GroupDetailScreen() {
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -163,6 +186,25 @@ export default function GroupDetailScreen() {
           <Text style={styles.codeValue}>{group.invite_code}</Text>
         </Pressable>
 
+        {period === 'weekly' && (
+          <View style={styles.challengeCard}>
+            <View style={styles.challengeTop}>
+              <Ionicons name="flame" size={18} color={colors.accent} />
+              <Text style={styles.challengeTitle}>Reto semanal · {METRICS.find((m) => m.key === metric)?.label}</Text>
+            </View>
+            {rows[0] ? (
+              <Text style={styles.challengeLeader}>
+                🥇 @{rows[0].username} manda con {formatValue(rows[0])}
+              </Text>
+            ) : (
+              <Text style={styles.challengeLeader}>Nadie ha puntuado todavía esta semana.</Text>
+            )}
+            <Text style={styles.challengeCountdown}>
+              Termina en {formatCountdown(currentWeekStart().getTime() + 7 * 24 * 60 * 60 * 1000 - now)}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.filterRow}>
           {METRICS.map((m) => (
             <Chip key={m.key} label={m.label} active={metric === m.key} onPress={() => setMetric(m.key)} />
@@ -218,6 +260,18 @@ const styles = StyleSheet.create({
   },
   codeLabel: { ...type.caption, color: colors.textMuted },
   codeValue: { fontFamily: fonts.numeralBold, color: colors.accent, fontSize: 26, letterSpacing: 4 },
+  challengeCard: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: spacing.lg,
+    gap: 4,
+  },
+  challengeTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  challengeTitle: { ...type.label, color: colors.accent },
+  challengeLeader: { ...type.body, fontFamily: fonts.bodyBold, color: colors.text, marginTop: 2 },
+  challengeCountdown: { ...type.caption, color: colors.textMuted },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row: {
     flexDirection: 'row',

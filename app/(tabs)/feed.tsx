@@ -17,6 +17,7 @@ import AchievementBadge, { type AchievementKind } from '../../src/components/ui/
 import Divider from '../../src/components/ui/Divider';
 import EmptyState from '../../src/components/ui/EmptyState';
 import ScaledPressable from '../../src/components/ui/ScaledPressable';
+import LikeHeart from '../../src/components/ui/LikeHeart';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
 
 const HIGH_SPEED_THRESHOLD_KMH = 120;
@@ -201,11 +202,7 @@ export default function FeedScreen() {
 
               <View style={styles.actionsRow}>
                 <ScaledPressable style={styles.actionButton} onPress={() => onToggleLike(item.id, liked)}>
-                  <Ionicons
-                    name={liked ? 'heart' : 'heart-outline'}
-                    size={17}
-                    color={liked ? colors.danger : colors.textMuted}
-                  />
+                  <LikeHeart liked={liked} size={17} />
                   <Text style={[styles.actionCount, liked && styles.actionIconActive]}>
                     {item.trip_likes?.[0]?.count ?? 0}
                   </Text>

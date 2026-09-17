@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '../src/state/authStore';
 import { supabase } from '../src/lib/supabase';
 import { initMapbox } from '../src/lib/mapbox';
+import { requestNotificationPermission } from '../src/utils/streakReminder';
 import { colors, radius, spacing, type } from '../src/theme/colors';
 import EmptyState from '../src/components/ui/EmptyState';
 import PrimaryButton from '../src/components/ui/PrimaryButton';
@@ -42,6 +43,13 @@ function useAuthDeepLinks() {
     const subscription = Linking.addEventListener('url', ({ url }) => exchangeIfNeeded(url));
     return () => subscription.remove();
   }, []);
+}
+
+/** Se pide una vez por sesión, al entrar con la cuenta ya cargada, para poder avisar de la racha. */
+function useNotificationPermission(enabled: boolean) {
+  useEffect(() => {
+    if (enabled) requestNotificationPermission();
+  }, [enabled]);
 }
 
 function Splash() {
@@ -82,10 +90,11 @@ export default function RootLayout() {
   });
   useAuthDeepLinks();
 
+  const hasOnboarded = !!profile?.onboarded_at;
+  useNotificationPermission(!!session && hasOnboarded);
+
   if (initializing || !fontsLoaded || (session && !profile && !profileError)) return <Splash />;
   if (session && !profile) return <ProfileLoadError />;
-
-  const hasOnboarded = !!profile?.onboarded_at;
 
   return (
     <>

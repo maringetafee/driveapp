@@ -33,6 +33,7 @@ import StatRow from '../../src/components/ui/StatRow';
 import ProgressBar from '../../src/components/ui/ProgressBar';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import Divider from '../../src/components/ui/Divider';
+import LikeHeart from '../../src/components/ui/LikeHeart';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
 import {
   ensureTripEnergy,
@@ -334,11 +335,7 @@ export default function TripSummaryScreen() {
 
           <View style={styles.socialRow}>
             <Pressable style={({ pressed }) => [styles.likeButton, pressed && { opacity: 0.8 }]} onPress={onToggleLike} disabled={!myUserId}>
-              <Ionicons
-                name={liked ? 'heart' : 'heart-outline'}
-                size={19}
-                color={liked ? colors.danger : colors.textMuted}
-              />
+              <LikeHeart liked={liked} size={19} />
               <Text style={[styles.likeCount, liked && styles.likeCountActive]}>{likeCount}</Text>
             </Pressable>
             <PrimaryButton
