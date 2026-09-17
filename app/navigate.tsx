@@ -21,7 +21,7 @@ import * as Location from 'expo-location';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import cameraData from '../src/data/speedCameras.json';
 import { fetchDirections, searchPlaces, type Place } from '../src/lib/mapboxApi';
-import { allowScreenOff, keepScreenOn, setVoiceMuted, speak, stopSpeaking } from '../src/lib/voice';
+import { allowScreenOff, keepScreenOn, setVoiceMode, speak, stopSpeaking, type VoiceMode } from '../src/lib/voice';
 import { LaneGlyph, ManeuverGlyph } from '../src/components/nav/ManeuverGlyph';
 import { useAuthStore } from '../src/state/authStore';
 import { useTripStore } from '../src/state/tripStore';
@@ -186,7 +186,7 @@ export default function NavigateScreen() {
   const [following, setFollowing] = useState(true);
   const [rerouting, setRerouting] = useState(false);
   const [panelHeight, setPanelHeight] = useState(140);
-  const [muted, setMuted] = useState(false);
+  const [voiceMode, setVoiceModeState] = useState<VoiceMode>('voice');
   const [overview, setOverview] = useState(false);
   const [navZoom, setNavZoom] = useState(ZOOM_CITY);
 
@@ -242,9 +242,12 @@ export default function NavigateScreen() {
   }, [applyRoute]);
 
   useEffect(() => {
-    setVoiceMuted(muted);
-  }, [muted]);
-  useEffect(() => () => setVoiceMuted(false), []);
+    setVoiceMode(voiceMode);
+  }, [voiceMode]);
+  useEffect(() => () => setVoiceMode('voice'), []);
+
+  const cycleVoiceMode = () =>
+    setVoiceModeState((m) => (m === 'voice' ? 'alerts' : m === 'alerts' ? 'off' : 'voice'));
 
   const onArrive = useCallback(() => {
     const name = destinationRef.current?.name ?? 'tu destino';
@@ -344,7 +347,7 @@ export default function NavigateScreen() {
 
     const { state, events } = watcher.update({ ...p, speedKmh, headingDeg: heading, timestamp: loc.timestamp, along });
     setRadar(state);
-    for (const event of events) speak(radarSpeech(event, speedKmh));
+    for (const event of events) speak(radarSpeech(event, speedKmh), 'alert');
   };
 
   const onLocationRef = useRef(handleLocation);
@@ -801,10 +804,16 @@ export default function NavigateScreen() {
       {navigating && (
         <View style={[styles.sideControls, { bottom: panelHeight + MAP_LOGO_CLEARANCE }]}>
           <MapControl
-            icon={muted ? 'volume-mute' : 'volume-high'}
-            label={muted ? 'Activar voz' : 'Silenciar voz'}
-            active={muted}
-            onPress={() => setMuted((m) => !m)}
+            icon={voiceMode === 'voice' ? 'volume-high' : voiceMode === 'alerts' ? 'warning' : 'volume-mute'}
+            label={
+              voiceMode === 'voice'
+                ? 'Voz completa: toca para solo alertas de radar'
+                : voiceMode === 'alerts'
+                  ? 'Solo alertas de radar: toca para silenciar todo'
+                  : 'Todo silenciado: toca para activar la voz'
+            }
+            active={voiceMode !== 'voice'}
+            onPress={cycleVoiceMode}
           />
           <MapControl
             icon={overview ? 'navigate' : 'git-branch-outline'}

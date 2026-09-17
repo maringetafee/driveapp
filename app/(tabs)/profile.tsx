@@ -27,6 +27,7 @@ const EXPLORE_LINKS = [
   { href: '/places', emoji: '🗺️', title: 'Lugares', subtitle: 'Municipios y provincias conquistados' },
   { href: '/segments', emoji: '🏁', title: 'Tramos', subtitle: 'Compite en regularidad' },
   { href: '/wrapped', emoji: '📼', title: 'Resúmenes', subtitle: 'Tu mes y tu año al volante' },
+  { href: '/fuel-stations', emoji: '⛽', title: 'Repostaje', subtitle: 'Gasolineras y puntos de carga más baratos' },
 ] as const;
 
 export default function ProfileScreen() {

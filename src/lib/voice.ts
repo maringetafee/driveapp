@@ -12,15 +12,20 @@ const keepAwake: KeepAwakeModule | null = requireOptionalNativeModule('ExpoKeepA
 
 export const voiceAvailable = speech != null;
 
-let muted = false;
+/** 'voice': guía por voz + avisos de radar. 'alerts': solo avisos de radar. 'off': sin voz. */
+export type VoiceMode = 'voice' | 'alerts' | 'off';
 
-export function setVoiceMuted(value: boolean) {
-  muted = value;
-  if (value) speech?.stop();
+let mode: VoiceMode = 'voice';
+
+export function setVoiceMode(next: VoiceMode) {
+  mode = next;
+  if (mode === 'off') speech?.stop();
 }
 
-export function speak(text: string) {
-  if (!muted) speech?.speak(text, { language: 'es-ES' });
+export function speak(text: string, kind: 'guidance' | 'alert' = 'guidance') {
+  if (mode === 'off') return;
+  if (mode === 'alerts' && kind === 'guidance') return;
+  speech?.speak(text, { language: 'es-ES' });
 }
 
 export function stopSpeaking() {

@@ -66,7 +66,7 @@ export function hasEnergyProfile(vehicle: Vehicle | null | undefined): vehicle i
   return !!vehicle?.fuel_type && !!vehicle.consumption_per_100km;
 }
 
-function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
   const dLon = (lon2 - lon1) * rad;
@@ -81,7 +81,7 @@ function median(values: number[]) {
 }
 
 /** En España los dos primeros dígitos del código postal son el código INE de la provincia. */
-async function provinceAt(lat: number, lon: number): Promise<string | null> {
+export async function provinceAt(lat: number, lon: number): Promise<string | null> {
   const res = await fetch(
     `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lon}&latitude=${lat}&types=postcode&country=es&access_token=${MAPBOX_TOKEN}`
   );
@@ -140,6 +140,69 @@ export async function energyPriceFor(
   } catch {
     return { price: info.fallbackPrice, source: 'average' };
   }
+}
+
+export interface FuelStation {
+  id: string;
+  brand: string;
+  address: string;
+  municipality: string;
+  lat: number;
+  lon: number;
+  price: number;
+  distanceM: number;
+}
+
+async function provinceStationsFull(province: string, productId: number): Promise<Omit<FuelStation, 'distanceM'>[]> {
+  const key = `fuel-stations-full:v1:${province}:${productId}`;
+  try {
+    const cached = await AsyncStorage.getItem(key);
+    if (cached) {
+      const { at, stations } = JSON.parse(cached) as { at: number; stations: Omit<FuelStation, 'distanceM'>[] };
+      if (Date.now() - at < CACHE_TTL_MS) return stations;
+    }
+  } catch {
+    // Caché corrupta: se vuelve a descargar.
+  }
+
+  const res = await fetch(`${PRICES_API}/${province}/${productId}`);
+  if (!res.ok) throw new Error(`precios ${res.status}`);
+  const json = await res.json();
+  const num = (value: string | undefined) => Number((value ?? '').replace(',', '.'));
+  const stations: Omit<FuelStation, 'distanceM'>[] = (json.ListaEESSPrecio ?? [])
+    .filter((s: Record<string, string>) => s['Tipo Venta'] !== 'R')
+    .map(
+      (s: Record<string, string>): Omit<FuelStation, 'distanceM'> => ({
+        id: s.IDEESS ?? `${s.Latitud}:${s['Longitud (WGS84)']}`,
+        brand: s['Rótulo'] ?? '',
+        address: s['Dirección'] ?? '',
+        municipality: s.Municipio ?? '',
+        lat: num(s.Latitud),
+        lon: num(s['Longitud (WGS84)']),
+        price: num(s.PrecioProducto),
+      })
+    )
+    .filter((s: Omit<FuelStation, 'distanceM'>) => s.lat && s.lon && s.price > 0);
+
+  AsyncStorage.setItem(key, JSON.stringify({ at: Date.now(), stations })).catch(() => {});
+  return stations;
+}
+
+/** Gasolineras cercanas para ese tipo de combustible, ordenadas de más barata a más cara. */
+export async function nearbyFuelStations(
+  fuelType: FuelType,
+  point: { lat: number; lon: number },
+  radiusM = 15_000
+): Promise<FuelStation[]> {
+  const info = FUEL_INFO[fuelType];
+  if (info.productId == null) return [];
+  const province = await provinceAt(point.lat, point.lon);
+  if (!province) return [];
+  const stations = await provinceStationsFull(province, info.productId);
+  return stations
+    .map((s) => ({ ...s, distanceM: distanceMeters(point.lat, point.lon, s.lat, s.lon) }))
+    .filter((s) => s.distanceM <= radiusM)
+    .sort((a, b) => a.price - b.price);
 }
 
 function tripEndPoint(trip: Trip): { lat: number; lon: number } | null {
