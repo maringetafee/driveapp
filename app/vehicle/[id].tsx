@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { supabase } from '../../src/lib/supabase';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
 import { formatLaunchTime } from '../../src/utils/launchTimer';
+import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
@@ -50,6 +51,12 @@ export default function VehicleDetailScreen() {
   const [energyError, setEnergyError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [settingDefault, setSettingDefault] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [draftMake, setDraftMake] = useState('');
+  const [draftModel, setDraftModel] = useState('');
+  const [draftYear, setDraftYear] = useState('');
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -91,6 +98,64 @@ export default function VehicleDetailScreen() {
     await supabase.from('vehicles').update({ is_default: true }).eq('id', vehicle.id);
     setVehicle({ ...vehicle, is_default: true });
     setSettingDefault(false);
+  };
+
+  const onEditInfo = () => {
+    if (!vehicle) return;
+    setDraftMake(vehicle.make);
+    setDraftModel(vehicle.model);
+    setDraftYear(vehicle.year != null ? String(vehicle.year) : '');
+    setInfoError(null);
+    setEditingInfo(true);
+  };
+
+  const yearValue = draftYear.trim() === '' ? null : Number(draftYear);
+  const yearValid = yearValue === null || (Number.isInteger(yearValue) && yearValue >= 1900 && yearValue <= new Date().getFullYear() + 1);
+
+  const onSaveInfo = async () => {
+    if (!vehicle || !draftMake.trim() || !draftModel.trim() || !yearValid) return;
+    setSavingInfo(true);
+    const changes = { make: draftMake.trim(), model: draftModel.trim(), year: yearValue };
+    const { error } = await supabase.from('vehicles').update(changes).eq('id', vehicle.id);
+    setSavingInfo(false);
+    if (error) {
+      setInfoError('No se pudo guardar. Comprueba tu conexión.');
+      return;
+    }
+    setVehicle({ ...vehicle, ...changes });
+    setEditingInfo(false);
+  };
+
+  const onDelete = () => {
+    if (!vehicle || !session) return;
+    Alert.alert(
+      'Eliminar coche',
+      `¿Eliminar ${vehicle.make} ${vehicle.model}? Se borrará también su mantenimiento. Tus trayectos se conservan, pero quedarán sin coche asignado.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('vehicles').delete().eq('id', vehicle.id);
+            if (error) {
+              Alert.alert('No se pudo eliminar', 'Comprueba tu conexión e inténtalo de nuevo.');
+              return;
+            }
+            if (vehicle.is_default) {
+              const { data: next } = await supabase
+                .from('vehicles')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: true })
+                .limit(1);
+              if (next?.[0]) await supabase.from('vehicles').update({ is_default: true }).eq('id', next[0].id);
+            }
+            router.back();
+          },
+        },
+      ]
+    );
   };
 
   const onEditEnergy = () => {
@@ -145,10 +210,28 @@ export default function VehicleDetailScreen() {
           </View>
         )}
 
-        <Text style={styles.title}>
-          {vehicle.make} {vehicle.model}
-          {vehicle.year ? ` · ${vehicle.year}` : ''}
-        </Text>
+        {editingInfo ? (
+          <View style={styles.energy}>
+            <Input placeholder="Marca" value={draftMake} onChangeText={setDraftMake} />
+            <Input placeholder="Modelo" value={draftModel} onChangeText={setDraftModel} />
+            <Input placeholder="Año (opcional)" value={draftYear} onChangeText={setDraftYear} keyboardType="number-pad" maxLength={4} />
+            {(infoError || !yearValid) && (
+              <Text style={styles.energyError}>{infoError ?? 'Introduce un año válido.'}</Text>
+            )}
+            <PrimaryButton
+              title="Guardar cambios"
+              onPress={onSaveInfo}
+              loading={savingInfo}
+              disabled={!draftMake.trim() || !draftModel.trim() || !yearValid}
+            />
+            <PrimaryButton title="Cancelar" onPress={() => setEditingInfo(false)} variant="ghost" />
+          </View>
+        ) : (
+          <Text style={styles.title}>
+            {vehicle.make} {vehicle.model}
+            {vehicle.year ? ` · ${vehicle.year}` : ''}
+          </Text>
+        )}
         {vehicle.is_default && (
           <View style={styles.defaultBadge}>
             <Text style={styles.defaultBadgeText}>PRINCIPAL</Text>
@@ -223,7 +306,8 @@ export default function VehicleDetailScreen() {
                 variant="ghost"
               />
             )}
-            <PrimaryButton title="✨ Mod Car (IA)" onPress={() => router.push(`/mod-car/${vehicle.id}`)} />
+            {!editingInfo && <PrimaryButton title="Editar coche" onPress={onEditInfo} variant="secondary" />}
+            <PrimaryButton title="Eliminar coche" onPress={onDelete} variant="danger" />
           </View>
         )}
       </ScrollView>
