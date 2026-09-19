@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 export interface WeeklyRecap {
   tripCount: number;
   distanceMeters: number;
-  avgDrivingScore: number | null;
+  durationSeconds: number;
   prevDistanceMeters: number;
 }
 
@@ -28,7 +28,7 @@ export async function fetchWeeklyRecap(userId: string): Promise<WeeklyRecap> {
   const [{ data: thisWeek }, { data: lastWeek }] = await Promise.all([
     supabase
       .from('trips')
-      .select('distance_meters, driving_score')
+      .select('distance_meters, duration_seconds')
       .eq('user_id', userId)
       .gte('started_at', weekStart.toISOString()),
     supabase
@@ -40,14 +40,11 @@ export async function fetchWeeklyRecap(userId: string): Promise<WeeklyRecap> {
   ]);
 
   const trips = thisWeek ?? [];
-  const scored = trips.filter((t) => t.driving_score != null);
 
   return {
     tripCount: trips.length,
     distanceMeters: trips.reduce((sum, t) => sum + (t.distance_meters ?? 0), 0),
-    avgDrivingScore: scored.length
-      ? Math.round(scored.reduce((sum, t) => sum + (t.driving_score ?? 0), 0) / scored.length)
-      : null,
+    durationSeconds: trips.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0),
     prevDistanceMeters: (lastWeek ?? []).reduce((sum, t) => sum + (t.distance_meters ?? 0), 0),
   };
 }

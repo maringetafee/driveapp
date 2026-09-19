@@ -7,11 +7,11 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import type { Vehicle } from '../../src/types/database';
 import BadgesRow from '../../src/components/BadgesRow';
 import BestMarks from '../../src/components/BestMarks';
-import ScoreTrendChart from '../../src/components/ScoreTrendChart';
 import Avatar from '../../src/components/ui/Avatar';
 import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
@@ -37,7 +37,6 @@ export default function ProfileScreen() {
   const units = profile?.units ?? 'kmh';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [stats, setStats] = useState<AggregateTripStats | null>(null);
-  const [scoreTrend, setScoreTrend] = useState<number[]>([]);
   const [focusCount, setFocusCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -72,17 +71,6 @@ export default function ProfileScreen() {
       fetchAggregateTripStats(session.user.id).then((s) => {
         if (!cancelled) setStats(s);
       });
-
-      supabase
-        .from('trips')
-        .select('driving_score')
-        .eq('user_id', session.user.id)
-        .not('driving_score', 'is', null)
-        .order('started_at', { ascending: false })
-        .limit(10)
-        .then(({ data }) => {
-          if (!cancelled) setScoreTrend((data ?? []).map((t) => t.driving_score as number).reverse());
-        });
 
       Promise.all([
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', session.user.id),
@@ -175,7 +163,7 @@ export default function ProfileScreen() {
                 items={[
                   { label: 'Trayectos', value: String(stats.tripCount) },
                   { label: 'Km totales', value: formatDistance(stats.totalDistanceMeters, units) },
-                  { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+                  { label: 'Mejor 0-100', value: stats.best0to100Seconds != null ? formatLaunchTime(stats.best0to100Seconds) : '—' },
                 ]}
               />
             )}
@@ -197,8 +185,6 @@ export default function ProfileScreen() {
                 </Pressable>
               ))}
             </View>
-
-            <ScoreTrendChart scores={scoreTrend} />
 
             {session && <BadgesRow userId={session.user.id} stats={stats} />}
 

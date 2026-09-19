@@ -30,7 +30,6 @@ async function insertTrip(userId: string, summary: TripSummary): Promise<string 
       distance_meters: summary.distanceMeters,
       avg_speed_kmh: summary.avgSpeedKmh,
       max_speed_kmh: summary.maxSpeedKmh,
-      driving_score: summary.drivingScore,
       route_geojson: summary.route,
       ...(summary.zeroTo50Seconds != null ? { zero_to_50_s: summary.zeroTo50Seconds } : {}),
       ...(summary.zeroTo100Seconds != null ? { zero_to_100_s: summary.zeroTo100Seconds } : {}),
@@ -69,8 +68,8 @@ async function saveWithRetry(userId: string, summary: TripSummary, options: Fini
     ]);
     return;
   }
-  if (options.replace) router.replace(`/trip/${id}?justFinished=1`);
-  else router.push(`/trip/${id}?justFinished=1`);
+  if (options.replace) router.replace(`/trip/${id}`);
+  else router.push(`/trip/${id}`);
 }
 
 /** Termina el trayecto en curso y lo guarda; si falla, ofrece reintentar sin perderlo. */

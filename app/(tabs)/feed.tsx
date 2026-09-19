@@ -7,11 +7,9 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
-import { scoreTone } from '../../src/utils/scoreTone';
 import NotificationBell from '../../src/components/NotificationBell';
 import Avatar from '../../src/components/ui/Avatar';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
-import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
 import StatRow from '../../src/components/ui/StatRow';
 import AchievementBadge, { type AchievementKind } from '../../src/components/ui/AchievementBadge';
 import Divider from '../../src/components/ui/Divider';
@@ -28,7 +26,6 @@ interface FeedItem {
   distance_meters: number | null;
   duration_seconds: number | null;
   max_speed_kmh: number | null;
-  driving_score: number | null;
   user_id: string;
   profiles: { username: string } | null;
   trip_likes: { count: number }[];
@@ -37,9 +34,6 @@ interface FeedItem {
 
 function achievementsFor(item: FeedItem): { kind: AchievementKind; label: string }[] {
   const badges: { kind: AchievementKind; label: string }[] = [];
-  if (item.driving_score != null && item.driving_score >= 90) {
-    badges.push({ kind: 'score', label: 'Score excelente' });
-  }
   if (item.max_speed_kmh != null && item.max_speed_kmh >= HIGH_SPEED_THRESHOLD_KMH) {
     badges.push({ kind: 'speed', label: 'Alta velocidad' });
   }
@@ -69,7 +63,7 @@ export default function FeedScreen() {
       const { data: trips } = await supabase
         .from('trips')
         .select(
-          'id, started_at, distance_meters, duration_seconds, max_speed_kmh, driving_score, user_id, profiles!trips_user_id_fkey(username), trip_likes(count), trip_comments(count)'
+          'id, started_at, distance_meters, duration_seconds, max_speed_kmh, user_id, profiles!trips_user_id_fkey(username), trip_likes(count), trip_comments(count)'
         )
         .in('user_id', authorIds)
         .eq('is_public', true)
@@ -176,7 +170,6 @@ export default function FeedScreen() {
                     {new Date(item.started_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                   </Text>
                 </View>
-                {item.driving_score != null && <ScoreDisplay score={item.driving_score} size="pill" />}
               </Pressable>
 
               <Pressable onPress={() => router.push(`/trip/${item.id}`)}>

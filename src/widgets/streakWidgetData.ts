@@ -7,10 +7,10 @@ const KEY = 'widget-streak-cache:v1';
 
 export interface WidgetStreakData {
   streak: number;
-  lastScore: number | null;
+  lastDistanceMeters: number | null;
 }
 
-const EMPTY: WidgetStreakData = { streak: 0, lastScore: null };
+const EMPTY: WidgetStreakData = { streak: 0, lastDistanceMeters: null };
 
 export async function saveWidgetStreakData(data: WidgetStreakData): Promise<void> {
   try {

@@ -16,7 +16,6 @@ import { SkeletonList } from '../../src/components/ui/Skeleton';
 import type { LeaderboardMetric, LeaderboardPeriod, LeaderboardScope } from '../../src/types/database';
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
-  { key: 'driving_score', label: 'Driving score' },
   { key: 'total_distance', label: 'Distancia' },
   { key: 'max_speed', label: 'Vel. máxima' },
   { key: 'zero_to_100', label: '0-100 km/h' },
@@ -55,7 +54,7 @@ export default function LeaderboardScreen() {
   const profile = useAuthStore((s) => s.profile);
   const units = profile?.units ?? 'kmh';
 
-  const [metric, setMetric] = useState<LeaderboardMetric>('driving_score');
+  const [metric, setMetric] = useState<LeaderboardMetric>('total_distance');
   const [scope, setScope] = useState<LeaderboardScope>('global');
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
   const [rows, setRows] = useState<Row[]>([]);
@@ -117,16 +116,14 @@ export default function LeaderboardScreen() {
           p_limit: 1,
         });
 
-      Promise.all([best('max_speed'), best('zero_to_100'), best('driving_score'), best('total_distance')]).then(
-        ([speedRes, launchRes, scoreRes, distRes]) => {
+      Promise.all([best('max_speed'), best('zero_to_100'), best('total_distance')]).then(
+        ([speedRes, launchRes, distRes]) => {
           if (cancelled) return;
           const items: RecordItem[] = [];
           const s = (speedRes.data as Row[] | null)?.[0];
           if (s) items.push({ emoji: '🏁', label: 'Vel. máxima', username: s.username, value: formatSpeed(s.value, units) });
           const l = (launchRes.data as Row[] | null)?.[0];
           if (l) items.push({ emoji: '🚀', label: 'Mejor 0-100', username: l.username, value: formatLaunchTime(l.value) });
-          const sc = (scoreRes.data as Row[] | null)?.[0];
-          if (sc) items.push({ emoji: '🎯', label: 'Mejor score', username: sc.username, value: sc.value.toFixed(0) });
           const d = (distRes.data as Row[] | null)?.[0];
           if (d) items.push({ emoji: '🛣️', label: 'Más kilómetros', username: d.username, value: formatDistance(d.value, units) });
           setRecords(items);
@@ -143,7 +140,6 @@ export default function LeaderboardScreen() {
     if (metric === 'max_speed') return formatSpeed(row.value, units);
     if (metric === 'total_distance') return formatDistance(row.value, units);
     if (metric === 'zero_to_100') return formatLaunchTime(row.value);
-    if (metric === 'driving_score') return row.value.toFixed(0);
     return String(Math.round(row.value));
   };
 

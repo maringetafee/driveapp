@@ -2,7 +2,7 @@
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 import type { WidgetStreakData } from './streakWidgetData';
 
-export function StreakWidget({ streak, lastScore }: WidgetStreakData) {
+export function StreakWidget({ streak, lastDistanceMeters }: WidgetStreakData) {
   return (
     <FlexWidget
       clickAction="OPEN_APP"
@@ -23,7 +23,7 @@ export function StreakWidget({ streak, lastScore }: WidgetStreakData) {
         />
       </FlexWidget>
       <TextWidget
-        text={lastScore != null ? `Último score: ${lastScore}` : 'Aún sin trayectos'}
+        text={lastDistanceMeters != null ? `Último trayecto: ${(lastDistanceMeters / 1000).toFixed(1)} km` : 'Aún sin trayectos'}
         style={{ fontSize: 13, color: '#A9AEC2', marginTop: 6 }}
       />
     </FlexWidget>

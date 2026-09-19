@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { Accelerometer, Gyroscope } from 'expo-sensors';
 import type { LineString } from 'geojson';
 import { haversineMeters, msToKmh, toLineString, type TripPoint } from '../utils/geo';
-import { computeDrivingScore, DrivingMetricsTracker } from '../utils/drivingMetrics';
+import { DrivingMetricsTracker } from '../utils/drivingMetrics';
 import { LaunchTimer } from '../utils/launchTimer';
 import { routeTimesFrom } from '../utils/tripPostProcess';
 
@@ -17,7 +17,6 @@ export interface TripSummary {
   route: LineString;
   /** Segundos desde startedAt de cada punto de `route`. */
   routeTimes: number[];
-  drivingScore: number;
   hardAccelerations: number;
   hardBrakes: number;
   sharpTurns: number;
@@ -164,12 +163,6 @@ export const useTripStore = create<TripState>((set, get) => ({
       hardBrakes: metrics.hardBrakes,
       sharpTurns: metrics.sharpTurns,
       gForceSeries: metrics.gForceSeries,
-      drivingScore: computeDrivingScore({
-        hardAccelerations: metrics.hardAccelerations,
-        hardBrakes: metrics.hardBrakes,
-        sharpTurns: metrics.sharpTurns,
-        durationSeconds,
-      }),
       zeroTo50Seconds: launch.best0to50,
       zeroTo100Seconds: launch.best0to100,
     };

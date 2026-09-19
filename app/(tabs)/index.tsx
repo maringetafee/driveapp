@@ -9,7 +9,6 @@ import { supabase } from '../../src/lib/supabase';
 import { colors, fonts, radius, shadow, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed, toLineString } from '../../src/utils/geo';
 import { computeStreak, timeGreeting } from '../../src/utils/homeInsights';
-import { scoreTone } from '../../src/utils/scoreTone';
 import { finishTrip } from '../../src/utils/finishTrip';
 import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { fetchTopFriendThisWeek, fetchWeeklyRecap, type FriendComparison, type WeeklyRecap } from '../../src/utils/weeklyRecap';
@@ -31,7 +30,6 @@ interface LastTrip {
   id: string;
   started_at: string;
   distance_meters: number | null;
-  driving_score: number | null;
 }
 
 export default function DriveScreen() {
@@ -67,7 +65,7 @@ export default function DriveScreen() {
       if (!session) return;
       supabase
         .from('trips')
-        .select('id, started_at, distance_meters, driving_score')
+        .select('id, started_at, distance_meters')
         .eq('user_id', session.user.id)
         .order('started_at', { ascending: false })
         .limit(30)
@@ -76,7 +74,7 @@ export default function DriveScreen() {
           const streakVal = computeStreak(rows.map((r) => r.started_at));
           setLastTrip(rows[0] ?? null);
           setStreak(streakVal);
-          syncStreakWidget({ streak: streakVal, lastScore: rows[0]?.driving_score ?? null });
+          syncStreakWidget({ streak: streakVal, lastDistanceMeters: rows[0]?.distance_meters ?? null });
           syncStreakReminder(rows[0]?.started_at ?? null, streakVal);
         });
       fetchWeeklyRecap(session.user.id).then(setRecap);
@@ -262,13 +260,6 @@ export default function DriveScreen() {
                     <Text style={styles.lastTripDistance}>
                       {formatDistance(lastTrip.distance_meters ?? 0, units)}
                     </Text>
-                    {lastTrip.driving_score != null && (
-                      <View style={[styles.scorePill, { borderColor: scoreTone(lastTrip.driving_score) }]}>
-                        <Text style={[styles.scoreText, { color: scoreTone(lastTrip.driving_score) }]}>
-                          {lastTrip.driving_score}
-                        </Text>
-                      </View>
-                    )}
                   </Pressable>
                 </View>
               )}
@@ -407,8 +398,6 @@ const styles = StyleSheet.create({
   lastTripCardPressed: { backgroundColor: colors.surfaceAlt, borderColor: colors.borderStrong },
   lastTripDate: { ...type.caption, color: colors.textMuted, width: 56 },
   lastTripDistance: { ...type.body, fontFamily: fonts.numeralSemiBold, color: colors.text, flex: 1 },
-  scorePill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  scoreText: { fontFamily: fonts.numeralBold, fontSize: 13 },
   streakCard: {
     flexDirection: 'row',
     alignItems: 'center',

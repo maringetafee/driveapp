@@ -99,17 +99,3 @@ export class DrivingMetricsTracker {
     this.lastSampledAt = 0;
   }
 }
-
-export function computeDrivingScore(params: {
-  hardAccelerations: number;
-  hardBrakes: number;
-  sharpTurns: number;
-  durationSeconds: number;
-}): number {
-  const { hardAccelerations, hardBrakes, sharpTurns, durationSeconds } = params;
-  const durationMinutes = Math.max(1, durationSeconds / 60);
-  const weightedEvents = hardAccelerations * 3 + hardBrakes * 4 + sharpTurns * 2;
-  const eventsPerTenMin = (weightedEvents / durationMinutes) * 10;
-  const score = 100 - eventsPerTenMin * 4;
-  return Math.max(0, Math.min(100, Math.round(score)));
-}

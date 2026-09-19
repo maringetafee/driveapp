@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing, type } from '../theme/colors';
-import { formatDistance } from '../utils/geo';
+import { formatDistance, formatDuration } from '../utils/geo';
 import type { Units } from '../types/database';
 import type { WeeklyRecap } from '../utils/weeklyRecap';
 import SectionHeader from './ui/SectionHeader';
@@ -18,7 +18,7 @@ export default function WeeklyRecapCard({ recap, units }: { recap: WeeklyRecap; 
       <View style={styles.row}>
         <Stat value={String(recap.tripCount)} label="Trayectos" />
         <Stat value={formatDistance(recap.distanceMeters, units)} label="Distancia" />
-        <Stat value={recap.avgDrivingScore != null ? String(recap.avgDrivingScore) : '—'} label="Score medio" />
+        <Stat value={formatDuration(recap.durationSeconds)} label="Tiempo al volante" />
       </View>
       {deltaPct != null && (
         <View style={styles.deltaRow}>

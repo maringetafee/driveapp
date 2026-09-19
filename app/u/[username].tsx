@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance } from '../../src/utils/geo';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import { fetchAggregateTripStats, type AggregateTripStats } from '../../src/utils/aggregateTripStats';
 import BadgesRow from '../../src/components/BadgesRow';
 import BestMarks from '../../src/components/BestMarks';
@@ -181,7 +182,7 @@ export default function PublicProfileScreen() {
                 items={[
                   { label: 'Trayectos', value: String(stats.tripCount) },
                   { label: 'Distancia total', value: formatDistance(stats.totalDistanceMeters, profile.units) },
-                  { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+                  { label: 'Mejor 0-100', value: stats.best0to100Seconds != null ? formatLaunchTime(stats.best0to100Seconds) : '—' },
                 ]}
               />
             )}

@@ -5,7 +5,7 @@ import type { LineString } from 'geojson';
 //   npx supabase gen types typescript --project-id <id> > src/types/database.ts
 
 export type Units = 'kmh' | 'mph';
-export type LeaderboardMetric = 'max_speed' | 'total_distance' | 'driving_score' | 'trip_count' | 'zero_to_100';
+export type LeaderboardMetric = 'max_speed' | 'total_distance' | 'trip_count' | 'zero_to_100';
 export type LeaderboardScope = 'friends' | 'city' | 'country' | 'global';
 export type LeaderboardPeriod = 'weekly' | 'monthly' | 'all_time';
 
@@ -73,7 +73,6 @@ export interface Trip {
   distance_meters: number | null;
   avg_speed_kmh: number | null;
   max_speed_kmh: number | null;
-  driving_score: number | null;
   zero_to_50_s: number | null;
   zero_to_100_s: number | null;
   fuel_type?: FuelType | null;

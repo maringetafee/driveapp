@@ -19,8 +19,6 @@ import { useAuthStore } from '../../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration, formatSpeed } from '../../src/utils/geo';
 import { formatLaunchTime } from '../../src/utils/launchTimer';
-import { scoreTone } from '../../src/utils/scoreTone';
-import { accelerationScore, brakingScore, corneringScore } from '../../src/utils/subScores';
 import TripRouteMap from '../../src/components/TripRouteMap';
 import TripHighlights from '../../src/components/TripHighlights';
 import TripShareCard from '../../src/components/TripShareCard';
@@ -28,9 +26,7 @@ import Avatar from '../../src/components/ui/Avatar';
 import Chip from '../../src/components/ui/Chip';
 import Input from '../../src/components/ui/Input';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
-import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
 import StatRow from '../../src/components/ui/StatRow';
-import ProgressBar from '../../src/components/ui/ProgressBar';
 import SectionHeader from '../../src/components/ui/SectionHeader';
 import Divider from '../../src/components/ui/Divider';
 import LikeHeart from '../../src/components/ui/LikeHeart';
@@ -68,7 +64,7 @@ interface CommentRow {
 }
 
 export default function TripSummaryScreen() {
-  const { id, justFinished } = useLocalSearchParams<{ id: string; justFinished?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const myUserId = useAuthStore((s) => s.session?.user.id);
   const units = useAuthStore((s) => s.profile?.units ?? 'kmh');
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -237,10 +233,6 @@ export default function TripSummaryScreen() {
 
           <TripRouteMap route={trip.route_geojson} height={240} />
 
-          {trip.driving_score != null && (
-            <ScoreDisplay score={trip.driving_score} size="hero" style={styles.score} reveal={!!justFinished} />
-          )}
-
           <StatRow
             columns={2}
             items={[
@@ -312,21 +304,13 @@ export default function TripSummaryScreen() {
 
           {tripMetrics && (
             <View style={styles.subScores}>
-              <SectionHeader title="Análisis de conducción" />
-              <ProgressBar
-                label="Aceleración"
-                value={accelerationScore(tripMetrics.hard_accelerations)}
-                tone={scoreTone(accelerationScore(tripMetrics.hard_accelerations))}
-              />
-              <ProgressBar
-                label="Frenadas"
-                value={brakingScore(tripMetrics.hard_brakes)}
-                tone={scoreTone(brakingScore(tripMetrics.hard_brakes))}
-              />
-              <ProgressBar
-                label="Curvas"
-                value={corneringScore(tripMetrics.sharp_turns)}
-                tone={scoreTone(corneringScore(tripMetrics.sharp_turns))}
+              <SectionHeader title="Estilo de conducción" />
+              <StatRow
+                items={[
+                  { label: 'Aceleraciones fuertes', value: String(tripMetrics.hard_accelerations) },
+                  { label: 'Frenazos bruscos', value: String(tripMetrics.hard_brakes) },
+                  { label: 'Curvas cerradas', value: String(tripMetrics.sharp_turns) },
+                ]}
               />
             </View>
           )}
@@ -396,7 +380,6 @@ export default function TripSummaryScreen() {
                 distanceMeters={trip.distance_meters ?? 0}
                 durationSeconds={trip.duration_seconds ?? 0}
                 maxSpeedKmh={trip.max_speed_kmh ?? 0}
-                drivingScore={trip.driving_score}
                 units={units}
                 username={owner?.username ?? ''}
                 route={trip.route_geojson}
@@ -415,7 +398,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg },
   title: { ...type.heading, color: colors.text },
-  score: { marginVertical: spacing.xs },
   energyCard: {
     flexDirection: 'row',
     alignItems: 'center',

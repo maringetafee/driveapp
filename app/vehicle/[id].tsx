@@ -7,6 +7,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatSpeed } from '../../src/utils/geo';
+import { formatLaunchTime } from '../../src/utils/launchTimer';
 import PrimaryButton from '../../src/components/ui/PrimaryButton';
 import StatRow from '../../src/components/ui/StatRow';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
@@ -25,7 +26,7 @@ interface VehicleStats {
   tripCount: number;
   totalDistanceMeters: number;
   maxSpeedKmh: number;
-  avgDrivingScore: number | null;
+  best0to100Seconds: number | null;
   /** Suma del gasto de los trayectos que ya lo tienen calculado. */
   energyCostEur: number;
 }
@@ -40,7 +41,7 @@ export default function VehicleDetailScreen() {
     tripCount: 0,
     totalDistanceMeters: 0,
     maxSpeedKmh: 0,
-    avgDrivingScore: null,
+    best0to100Seconds: null,
     energyCostEur: 0,
   });
   const [editingEnergy, setEditingEnergy] = useState(false);
@@ -64,14 +65,12 @@ export default function VehicleDetailScreen() {
         setVehicle(vehicleData);
 
         const rows = trips ?? [];
-        const scored = rows.filter((t) => t.driving_score != null);
+        const launches = rows.map((t) => t.zero_to_100_s).filter((s): s is number => s != null);
         setStats({
           tripCount: rows.length,
           totalDistanceMeters: rows.reduce((sum, t) => sum + (t.distance_meters ?? 0), 0),
           maxSpeedKmh: rows.reduce((max, t) => Math.max(max, t.max_speed_kmh ?? 0), 0),
-          avgDrivingScore: scored.length
-            ? Math.round(scored.reduce((sum, t) => sum + (t.driving_score ?? 0), 0) / scored.length)
-            : null,
+          best0to100Seconds: launches.length ? Math.min(...launches) : null,
           energyCostEur: rows.reduce((sum, t) => sum + (t.energy_cost_eur ?? 0), 0),
         });
         setLoading(false);
@@ -162,7 +161,7 @@ export default function VehicleDetailScreen() {
             { label: 'Trayectos', value: String(stats.tripCount) },
             { label: 'Distancia total', value: formatDistance(stats.totalDistanceMeters, units) },
             { label: 'Vel. máxima', value: formatSpeed(stats.maxSpeedKmh, units) },
-            { label: 'Score medio', value: stats.avgDrivingScore != null ? String(stats.avgDrivingScore) : '—' },
+            { label: 'Mejor 0-100', value: stats.best0to100Seconds != null ? formatLaunchTime(stats.best0to100Seconds) : '—' },
           ]}
         />
 

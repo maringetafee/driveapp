@@ -5,18 +5,10 @@ import { formatDistance, formatDuration, formatSpeed } from '../utils/geo';
 import { staticMapUrl } from '../utils/staticMap';
 import type { Units } from '../types/database';
 
-function scoreTone(score: number | null) {
-  if (score == null) return colors.text;
-  if (score >= 85) return colors.accent;
-  if (score >= 60) return colors.gold;
-  return colors.danger;
-}
-
 interface Props {
   distanceMeters: number;
   durationSeconds: number;
   maxSpeedKmh: number;
-  drivingScore: number | null;
   units: Units;
   username: string;
   route?: LineString | null;
@@ -26,12 +18,12 @@ export default function TripShareCard({
   distanceMeters,
   durationSeconds,
   maxSpeedKmh,
-  drivingScore,
   units,
   username,
   route,
 }: Props) {
   const mapUrl = staticMapUrl(route ?? null, 620, 260);
+  const [value, unitLabel] = formatDistance(distanceMeters, units).split(' ');
 
   return (
     <View style={styles.card}>
@@ -47,13 +39,15 @@ export default function TripShareCard({
 
       {mapUrl && <Image source={{ uri: mapUrl }} style={styles.map} />}
 
-      <View style={styles.scoreBlock}>
-        <Text style={[styles.scoreValue, { color: scoreTone(drivingScore) }]}>{drivingScore ?? '—'}</Text>
-        <Text style={styles.scoreLabel}>driving score</Text>
+      <View style={styles.heroBlock}>
+        <Text style={styles.heroValue}>
+          {value}
+          <Text style={styles.heroUnit}> {unitLabel}</Text>
+        </Text>
+        <Text style={styles.heroLabel}>recorridos</Text>
       </View>
 
       <View style={styles.statsRow}>
-        <Stat value={formatDistance(distanceMeters, units)} label="Distancia" />
         <Stat value={formatSpeed(maxSpeedKmh, units)} label="Vel. máx." />
         <Stat value={formatDuration(durationSeconds)} label="Duración" />
       </View>
@@ -94,9 +88,10 @@ const styles = StyleSheet.create({
   brand: { fontFamily: fonts.bodyExtraBold, color: colors.text, fontSize: 15 },
   username: { fontFamily: fonts.bodyMedium, color: colors.textMuted, fontSize: 12, marginTop: 1 },
   map: { width: '100%', height: 130, borderRadius: radius.lg, marginBottom: 24, backgroundColor: colors.surface },
-  scoreBlock: { alignItems: 'center', marginBottom: 28 },
-  scoreValue: { fontFamily: fonts.numeralBold, fontSize: 88, letterSpacing: -3 },
-  scoreLabel: {
+  heroBlock: { alignItems: 'center', marginBottom: 28 },
+  heroValue: { fontFamily: fonts.numeralBold, fontSize: 72, letterSpacing: -2, color: colors.accent },
+  heroUnit: { fontFamily: fonts.numeralBold, fontSize: 28, color: colors.accent },
+  heroLabel: {
     fontFamily: fonts.bodyBold,
     color: colors.textMuted,
     fontSize: 13,

@@ -6,15 +6,11 @@ import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/state/authStore';
 import { colors, fonts, radius, spacing, type } from '../../src/theme/colors';
 import { formatDistance, formatDuration } from '../../src/utils/geo';
-import { scoreTone } from '../../src/utils/scoreTone';
 import type { Trip, TripTag } from '../../src/types/database';
 import Chip from '../../src/components/ui/Chip';
 import FadeSlideIn from '../../src/components/ui/FadeSlideIn';
-import ScoreDisplay from '../../src/components/ui/ScoreDisplay';
 import EmptyState from '../../src/components/ui/EmptyState';
 import { SkeletonList } from '../../src/components/ui/Skeleton';
-
-const STANDOUT_SCORE = 90;
 
 const TAG_LABEL: Record<TripTag, string> = {
   commute: '🏢 Commute',
@@ -98,40 +94,31 @@ export default function HistoryScreen() {
             <EmptyState emoji="🗺️" title="Aún no has registrado trayectos" subtitle="Cuando termines uno, aparecerá aquí." />
           )
         }
-        renderItem={({ item, index }) => {
-          const standout = item.driving_score != null && item.driving_score >= STANDOUT_SCORE;
-          return (
-            <FadeSlideIn index={index}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.card,
-                  standout && { borderLeftColor: scoreTone(item.driving_score), borderLeftWidth: 3 },
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => router.push(`/trip/${item.id}`)}
-              >
-                <View style={styles.cardTop}>
-                  <Text style={styles.date}>
-                    {new Date(item.started_at).toLocaleDateString('es-ES', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                  {item.driving_score != null && <ScoreDisplay score={item.driving_score} size="pill" />}
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.metric}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
-                  <View style={styles.dot} />
-                  <Text style={styles.metric}>{formatDuration(item.duration_seconds ?? 0)}</Text>
-                  {standout && <Text style={styles.standoutTag}>🔥 Destacado</Text>}
-                </View>
-                {item.tag && <Text style={styles.tagText}>{TAG_LABEL[item.tag]}</Text>}
-              </Pressable>
-            </FadeSlideIn>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <FadeSlideIn index={index}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(`/trip/${item.id}`)}
+            >
+              <View style={styles.cardTop}>
+                <Text style={styles.date}>
+                  {new Date(item.started_at).toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.metric}>{formatDistance(item.distance_meters ?? 0, units)}</Text>
+                <View style={styles.dot} />
+                <Text style={styles.metric}>{formatDuration(item.duration_seconds ?? 0)}</Text>
+              </View>
+              {item.tag && <Text style={styles.tagText}>{TAG_LABEL[item.tag]}</Text>}
+            </Pressable>
+          </FadeSlideIn>
+        )}
       />
     </SafeAreaView>
   );
@@ -156,5 +143,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   metric: { ...type.subheading, fontFamily: fonts.numeralSemiBold, color: colors.text },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.textFaint },
-  standoutTag: { ...type.caption, color: colors.gold, marginLeft: 'auto' },
 });

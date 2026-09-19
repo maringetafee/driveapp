@@ -32,7 +32,6 @@ function formatCountdown(ms: number): string {
 }
 
 const METRICS: { key: LeaderboardMetric; label: string }[] = [
-  { key: 'driving_score', label: 'Driving score' },
   { key: 'total_distance', label: 'Distancia' },
   { key: 'max_speed', label: 'Vel. máxima' },
   { key: 'zero_to_100', label: '0-100 km/h' },
@@ -59,7 +58,7 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<Group | null>(null);
   const [groupLoading, setGroupLoading] = useState(true);
   const [memberCount, setMemberCount] = useState(0);
-  const [metric, setMetric] = useState<LeaderboardMetric>('driving_score');
+  const [metric, setMetric] = useState<LeaderboardMetric>('total_distance');
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +119,6 @@ export default function GroupDetailScreen() {
     if (metric === 'max_speed') return formatSpeed(row.value, units);
     if (metric === 'total_distance') return formatDistance(row.value, units);
     if (metric === 'zero_to_100') return formatLaunchTime(row.value);
-    if (metric === 'driving_score') return row.value.toFixed(0);
     return String(Math.round(row.value));
   };
 
